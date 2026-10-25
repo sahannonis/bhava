@@ -67,6 +67,20 @@ with sync_playwright() as p:
     pg.click('#modeBirth')
     assert pg.inner_text('.panel .kind') == 'Boss'
 
+    # the practice fight: play a strike, end the turn, leave
+    pg.click('#enter'); pg.wait_for_function("document.querySelector('.fight .card') && !document.getElementById('end').disabled", timeout=10000)
+    assert pg.inner_text('.fight-where') == '1st house, Pisces'
+    assert 'Healing tide' in pg.inner_text('.ground-line')
+    strike = pg.locator('.card', has_text='Strike').first
+    strike.tap(); pg.locator('.card.picked').tap()
+    pg.wait_for_function("document.querySelector('.foe .hp-num').textContent.startsWith('36 /')", timeout=10000)
+    pg.wait_for_function("!document.getElementById('end').disabled", timeout=10000)
+    pg.click('#end')
+    pg.wait_for_function("document.getElementById('turn').textContent === 'Turn 2' && !document.getElementById('end').disabled", timeout=15000)
+    pg.screenshot(path=f'{OUT}/fight.png')
+    assert pg.evaluate('document.documentElement.scrollWidth') <= 390
+    pg.click('#leave'); pg.wait_for_selector('.chart')
+
     # 2. the birth is kept on the device
     pg.reload(); pg.wait_for_selector('.chart')
     assert pg.inner_text('.class-head h1') == 'The Sage'

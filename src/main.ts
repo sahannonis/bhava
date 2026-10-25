@@ -13,6 +13,9 @@ import { chartSvg } from './chartSvg';
 import { ENEMIES, GROUND, KIND_NAME, REMEDY, REST_GIFT, TRANSIT_LINE } from './content';
 import { moonSvg, todaySky, type Sky } from './today';
 import { startStarlight } from './ambience';
+import { showFight } from './combatView';
+import { starterDeck } from './game/cards';
+import type { Mods } from './game/combat';
 import { forgetBirth, loadBirth, saveBirth } from './store';
 
 const app = document.getElementById('app')!;
@@ -221,8 +224,8 @@ function showChart(r: Reading) {
     <ul class="legend" id="legend" aria-label="What the ink means">${LEGEND_BIRTH}</ul>
     <section class="panel" id="panel" aria-live="polite">${housePanel(r, selected, current)}</section>
     <div class="enter">
-      <button class="primary" id="enter" disabled>Enter the ${ordinal(current)} house</button>
-      <small>Fights open in the next build.</small>
+      <button class="primary" id="enter">Practice fight</button>
+      <small>A test fight on the ground of your ${ordinal(current)} house. Runs through all twelve come in the next builds.</small>
     </div>
     <footer class="actions">
       <p class="born">Born ${esc(local)}${r.timeKnown ? '' : ' (time unknown)'}, ${esc(placeLabel(r.birth.place))}, ${r.offset}</p>
@@ -268,7 +271,33 @@ function showChart(r: Reading) {
   });
   document.getElementById('edit')!.addEventListener('click', () => showBirth(r.birth));
   document.getElementById('forget')!.addEventListener('click', async () => { await forgetBirth(); showBirth(null); });
+  document.getElementById('enter')!.addEventListener('click', () => startPractice(r, sky));
   window.scrollTo(0, 0);
+}
+
+/* Today's Moon effects that change a fight. The rest (prana, karma, rest places) arrive with runs. */
+function fightMods(sky: Sky): { mods: Mods; maxHpBonus: number; note?: string } {
+  const n = sky.fromMoon, note = `Today's Moon: ${sky.effect}`;
+  switch (n) {
+    case 1: return { mods: {}, maxHpBonus: 5, note };
+    case 3: return { mods: { firstCardFree: true }, maxHpBonus: 0, note };
+    case 6: return { mods: { enemyHpMult: 0.9 }, maxHpBonus: 0, note };
+    case 8: return { mods: { enemyDamageBonus: 1 }, maxHpBonus: 0, note };
+    case 10: return { mods: { playerAttackBonus: 1 }, maxHpBonus: 0, note };
+    case 12: return { mods: {}, maxHpBonus: -5, note };
+    default: return { mods: {}, maxHpBonus: 0 };
+  }
+}
+
+function startPractice(r: Reading, sky: Sky) {
+  const h = r.houses[0], fm = fightMods(sky), maxHp = 60 + fm.maxHpBonus;
+  showFight(app, {
+    title: `${ordinal(1)} house, ${h.signName}`,
+    deck: starterDeck(r.cls.ruler),
+    enemies: ['shade'],
+    ground: h.element as 'fire' | 'earth' | 'air' | 'water',
+    seed: r.seed, run: 0, hp: maxHp, maxHp, mods: fm.mods, modNote: fm.note,
+  }, () => showChart(r));
 }
 
 /* A ring of 12 houses and 27 lunar mansions, turning very slowly behind the title. */
