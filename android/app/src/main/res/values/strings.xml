@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Bhava</string>
+    <string name="title_activity_main">Bhava</string>
+    <string name="package_name">com.twelfthhouseprotocol.bhava</string>
+    <string name="custom_url_scheme">com.twelfthhouseprotocol.bhava</string>
+</resources>

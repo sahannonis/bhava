@@ -1,0 +1,188 @@
+/* Bhava: soot ink cut into a palm leaf, like an ola-leaf horoscope.
+   The only colour in the game comes from the planets. */
+:root {
+  --leaf: #d6c28c;
+  --leaf-deep: #c9b37a;
+  --fibre: rgba(92, 70, 28, 0.07);
+  --soot: #241e15;
+  --soot-soft: #4f4432;
+  --cut-light: rgba(250, 241, 210, 0.75);
+
+  --sun: #654700;
+  --moon: #3e4c5a;
+  --mars: #8a2414;
+  --mercury: #1f5230;
+  --jupiter: #7d3b08;
+  --venus: #7e3463;
+  --saturn: #283673;
+  --rahu: #45385a;
+  --ketu: #5e4029;
+
+  --display: 'Marcellus', 'Times New Roman', serif;
+  --text: 'Alegreya', Georgia, serif;
+  --gutter: 20px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: var(--leaf);
+  /* long palm fibres, and a slightly darker edge like a dried leaf */
+  background-image:
+    repeating-linear-gradient(0deg, var(--fibre) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(0deg, rgba(92, 70, 28, 0.045) 0 2px, transparent 2px 23px),
+    radial-gradient(120% 90% at 50% 40%, transparent 55%, var(--leaf-deep) 100%);
+  background-attachment: fixed;
+  color: var(--soot);
+  font: 400 18px/1.6 var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.leaf {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 28px) var(--gutter) calc(env(safe-area-inset-bottom) + 40px);
+}
+
+h1, h2, h3, .sub, .wordmark { font-family: var(--display); font-weight: 400; margin: 0; }
+/* cut letters: a pale edge under the dark stroke */
+h1, h2, h3, .wordmark { text-shadow: 0 1.2px 0 var(--cut-light); }
+
+p { margin: 0; }
+.lead { font-size: 1.06rem; max-width: 34em; }
+small { display: block; color: var(--soot-soft); font-size: 0.86rem; line-height: 1.45; margin-top: 6px; }
+
+/* ---------- birth ---------- */
+.title { text-align: center; padding: 6vh 0 22px; }
+.title h1 { font-size: clamp(3.4rem, 18vw, 5.2rem); letter-spacing: 0.06em; line-height: 1; }
+.title .sub { font-size: 1.1rem; letter-spacing: 0.08em; color: var(--soot-soft); margin-top: 8px; }
+.birth .lead { text-align: center; margin: 0 auto 28px; }
+
+form { display: grid; gap: 22px; }
+.field { display: grid; gap: 6px; }
+.field > span, .field > label { font-family: var(--display); font-size: 1.02rem; }
+
+input {
+  font: inherit;
+  color: var(--soot);
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 2px 8px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--soot);
+  box-shadow: 0 1.2px 0 var(--cut-light);
+  border-radius: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input::placeholder { color: var(--soot-soft); opacity: 0.8; }
+input:focus { outline: none; border-bottom-color: var(--mars); }
+input[type='date'], input[type='time'] { min-height: 48px; }
+
+.suggest { list-style: none; margin: 0; padding: 0; }
+.suggest li {
+  padding: 12px 2px;
+  border-bottom: 1px solid rgba(36, 30, 21, 0.18);
+  cursor: pointer;
+  line-height: 1.35;
+}
+.suggest li:active { background: rgba(36, 30, 21, 0.07); }
+.suggest li span { color: var(--soot-soft); font-size: 0.92rem; }
+
+.chosen { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0 8px; border-bottom: 2px solid var(--soot); }
+#coordsBox { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; margin-top: 6px; }
+#coordsBox[hidden], #placePick[hidden], .chosen[hidden] { display: none; }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+.primary {
+  min-height: 54px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--soot);
+  color: var(--leaf);
+  font-family: var(--display);
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+.primary:active { transform: translateY(1px); }
+.ghost {
+  min-height: 46px;
+  padding: 0 18px;
+  background: transparent;
+  border: 1.5px solid var(--soot);
+  border-radius: 3px;
+}
+.link {
+  justify-self: start;
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--soot);
+  font-size: 0.95rem;
+}
+:focus-visible { outline: 2px solid var(--mars); outline-offset: 3px; }
+
+.err { color: var(--mars); min-height: 1.6em; font-weight: 700; }
+.err:empty { min-height: 0; }
+.private { text-align: center; color: var(--soot-soft); font-size: 0.92rem; }
+
+/* ---------- chart ---------- */
+.wordmark { font-size: 1rem; letter-spacing: 0.12em; color: var(--soot-soft); }
+.class-head h1 { font-size: clamp(2.4rem, 11vw, 3.2rem); line-height: 1.05; margin: 10px 0 12px; }
+.note { margin-top: 10px; font-style: italic; color: var(--soot-soft); }
+
+.chart-wrap { margin: 26px 0 0; }
+.chart { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .cut { fill: none; stroke: var(--soot); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+.chart .cut-light { fill: none; stroke: var(--cut-light); stroke-width: 2.4; }
+.chart .house polygon { fill: transparent; transition: fill 160ms ease; }
+.chart .house:active polygon, .chart .house:focus-visible polygon { fill: rgba(36, 30, 21, 0.08); }
+.chart .house { cursor: pointer; outline: none; }
+.chart .sign-no { font: 400 14px var(--display); fill: var(--soot-soft); }
+.chart .lagna-word { font: italic 400 12px var(--text); fill: var(--soot-soft); letter-spacing: 0.04em; }
+.chart .pl { font: 700 16px var(--text); letter-spacing: 0.02em; }
+figcaption { margin-top: 14px; font-size: 0.92rem; color: var(--soot-soft); text-align: center; }
+
+.pl-sun { fill: var(--sun); color: var(--sun); }
+.pl-moon { fill: var(--moon); color: var(--moon); }
+.pl-mars { fill: var(--mars); color: var(--mars); }
+.pl-mercury { fill: var(--mercury); color: var(--mercury); }
+.pl-jupiter { fill: var(--jupiter); color: var(--jupiter); }
+.pl-venus { fill: var(--venus); color: var(--venus); }
+.pl-saturn { fill: var(--saturn); color: var(--saturn); }
+.pl-rahu { fill: var(--rahu); color: var(--rahu); }
+.pl-ketu { fill: var(--ketu); color: var(--ketu); }
+.h-planets span { font-weight: 700; }
+
+.houses { margin-top: 40px; }
+.houses h2 { font-size: 1.5rem; }
+.hint { color: var(--soot-soft); font-size: 0.92rem; margin-top: 4px; }
+.houses ol { list-style: none; margin: 18px 0 0; padding: 0; }
+.house-row {
+  padding: 16px 0 18px;
+  border-top: 1.5px solid rgba(36, 30, 21, 0.35);
+  box-shadow: inset 0 1.2px 0 var(--cut-light);
+  scroll-margin: 80px;
+}
+.house-row.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { from { background: rgba(36, 30, 21, 0.12); } to { background: transparent; } }
+.h-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.h-head h3 { font-size: 1.2rem; }
+.kind { font-family: var(--display); font-size: 0.95rem; color: var(--soot-soft); }
+.kind-boss .kind, .kind-gate .kind { color: var(--soot); }
+.h-sign { color: var(--soot-soft); }
+.h-planets { margin-top: 4px; }
+.h-lord { margin-top: 6px; font-size: 0.92rem; color: var(--soot-soft); }
+
+.actions { display: grid; justify-items: center; gap: 10px; margin-top: 36px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

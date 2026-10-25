@@ -1,0 +1,32 @@
+{
+  "name": "bhava",
+  "version": "0.1.0",
+  "description": "Bhava: The Twelve Houses, an astrology roguelite for Android",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc && vite build",
+    "build:preview": "vite build --mode preview",
+    "test": "node --test tests/engine.test.cjs",
+    "android": "npm run build && npx cap sync android"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@playwright/test": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vite-plugin-singlefile": "^2.3.4"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/preferences": "^8.0.1",
+    "@fontsource/alegreya": "^5.3.0",
+    "@fontsource/marcellus": "^5.3.0",
+    "astronomy-engine": "^2.1.19",
+    "tz-lookup": "^6.1.25"
+  },
+  "private": true,
+  "type": "module"
+}
