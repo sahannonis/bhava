@@ -6,6 +6,21 @@ import type { Reading } from '../seed';
 import { rngFor } from '../rng';
 import { LESSER, PLANET_ENEMIES, conjunction, gateShade, scaled, type EnemyDef } from './enemies';
 import { starterDeck } from './cards';
+import { lifeRules } from './meta';
+
+/* A later life's rules, laid over an enemy made for its house. */
+function forLife(def: EnemyDef, life: number): EnemyDef {
+  const L = lifeRules(life);
+  if (life <= 1) return def;
+  const hp = def.rank === 'lesser' ? L.lesserHp : def.rank === 'boss' || def.rank === 'gate' ? L.bossHp : 1;
+  return {
+    ...def,
+    hp: Math.round(def.hp * hp),
+    block: L.startBlock || undefined,
+    enrageAt: L.enrageAt,
+    moves: L.atk ? def.moves.map(m => ({ ...m, actions: m.actions.map(a => (a.kind === 'attack' ? { ...a, amount: a.amount + L.atk } : a)) })) : def.moves,
+  };
+}
 
 export type StepKind = 'lesser' | 'story' | 'planet' | 'boss' | 'rest' | 'gate';
 export type Step = { kind: StepKind; house: number; enemies?: EnemyDef[] };
@@ -23,6 +38,8 @@ export type RunState = {
   cleared: number[];
   pressing: string;    // today's pressing planet when the run began: its enemies hit 1 harder (until its remedy)
   karma: number;       // moved by story choices and deeds; counted at the end of the run (Day 7)
+  life?: number;       // which life this run is (1 = the first); later lives add rules
+  perks?: { restBonus: number; extraChoice: number }; // from the hub's upgrades
   restGiftTaken?: boolean; // the rest place's arrival gift was given (so leaving and coming back doesn't repeat it)
   over?: 'won' | 'lost';
 };
@@ -57,12 +74,22 @@ export function houseSteps(r: Reading, run: RunState, n: number): Step[] {
     steps = [{ kind: 'lesser', house: n, enemies: lesser() }, { kind: 'story', house: n }, { kind: 'lesser', house: n, enemies: lesser() },
       { kind: n === 12 ? 'gate' : 'boss', house: n, enemies: [boss] }];
   }
-  return steps;
+  const life = run.life ?? 1;
+  return life > 1 ? steps.map(st => (st.enemies ? { ...st, enemies: st.enemies.map(d => forLife(d, life)) } : st)) : steps;
 }
 
-export function newRun(r: Reading, runNo: number, opts: { maxHpBonus?: number; pressing: string }): RunState {
-  const maxHp = 60 + (r.cls.ruler === 'Sun' ? 8 : 0) + (opts.maxHpBonus ?? 0);
-  return { v: 1, run: runNo, house: 1, step: 0, hp: maxHp, maxHp, deck: starterDeck(r.cls.ruler), prana: 0, fights: 0, cleared: [], pressing: opts.pressing, karma: 0 };
+export type RunPerks = { maxHp: number; prana: number; restBonus: number; steady: boolean; light: boolean; extraChoice: number };
+
+export function newRun(r: Reading, runNo: number, opts: { maxHpBonus?: number; pressing: string; life?: number; perks?: RunPerks }): RunState {
+  const life = opts.life ?? 1, p = opts.perks;
+  const maxHp = Math.round((60 + (r.cls.ruler === 'Sun' ? 8 : 0) + (opts.maxHpBonus ?? 0) + (p?.maxHp ?? 0)) * lifeRules(life).maxHp);
+  const deck = starterDeck(r.cls.ruler);
+  if (p?.light) deck.splice(deck.indexOf('strike'), 1);
+  if (p?.steady) deck[deck.length - 3] += '+'; // the signature card
+  return {
+    v: 1, run: runNo, house: 1, step: 0, hp: maxHp, maxHp, deck, prana: p?.prana ?? 0, fights: 0, cleared: [], pressing: opts.pressing, karma: 0,
+    life, perks: { restBonus: p?.restBonus ?? 0, extraChoice: p?.extraChoice ?? 0 },
+  };
 }
 
 export const currentStep = (r: Reading, run: RunState): Step => houseSteps(r, run, run.house)[run.step];

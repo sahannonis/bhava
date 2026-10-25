@@ -3,7 +3,8 @@
    - careless: plays whatever it can, left to right, and takes the first card offered (how Sahan tested it).
    - steady: guards when hit is coming, focuses the weakest foe, and picks cards with a simple taste.
    Run directly to see the numbers:  npx tsx tests/sim.ts */
-import { houseSteps, newRun, advance, currentStep, applyOutcome, upgradeCard, PRANA, type RunState } from '../src/game/run';
+import { lifeRules, newMeta, perks as perksOf, UPGRADES, buy } from '../src/game/meta';
+import { houseSteps, newRun, type RunPerks, advance, currentStep, applyOutcome, upgradeCard, PRANA, type RunState } from '../src/game/run';
 import { startCombat, playCard, endTurn, intentOf, cantPlay, type CombatState } from '../src/game/combat';
 import { CARDS, canUpgrade } from '../src/game/cards';
 import { STORIES } from '../src/game/stories';
@@ -49,14 +50,14 @@ const value = (id: string) => {
   return v / Math.max(0.6, d.cost);
 };
 
-function fight(s: CombatState, style: Style) {
+export function fight(s: CombatState, style: Style) {
   for (let g = 0; g < 400 && s.phase === 'player'; g++) {
-    let played = true;
-    while (played && s.phase === 'player') {
+    let played = true, plays = 0;
+    while (played && s.phase === 'player' && plays++ < 60) {
       played = false;
       const live = s.enemies.map((e, i) => [e, i] as const).filter(([e]) => e.hp > 0);
       if (!live.length) break;
-      let order = s.hand.map((_, i) => i).filter(i => !cantPlay(s, i));
+      let order = s.hand.map((_, i) => i).filter(i => !cantPlay(s, i) && (plays < 10 || CARDS[s.hand[i].id].cost > 0));
       let target = live[0][1];
       if (style === 'steady') {
         target = live.reduce((a, b) => (b[0].hp < a[0].hp ? b : a))[1];
@@ -74,8 +75,9 @@ function fight(s: CombatState, style: Style) {
   }
 }
 
-export function simRun(seed: number, style: Style, runNo = 1): { reached: number; minutes: number; fights: number } {
-  const r = fakeReading(seed), run: RunState = newRun(r, runNo, { pressing: 'Saturn' });
+export function simRun(seed: number, style: Style, runNo = 1, opts: { life?: number; perks?: RunPerks } = {}): { reached: number; minutes: number; fights: number } {
+  const r = fakeReading(seed), run: RunState = newRun(r, runNo, { pressing: 'Saturn', ...opts });
+  const L = lifeRules(run.life);
   const rng = rngFor(seed, 99);
   let turns = 0, fights = 0, screens = 0;
   while (!run.over) {
@@ -87,9 +89,9 @@ export function simRun(seed: number, style: Style, runNo = 1): { reached: number
       fights++; turns += state.turn;
       if (state.phase !== 'won') { run.over = 'lost'; break; }
       run.hp = state.player.hp;
-      run.prana += PRANA[st.kind];
+      run.prana += Math.round(PRANA[st.kind] * L.prana);
       const boss = st.enemies.find(e => e.planet);
-      const ids = cardChoices(rngFor(seed, 500 + run.fights), { housePlanets: boss?.planets ?? (boss?.planet ? [boss.planet] : h.planets.map(p => p.name)), cls: r.cls.ruler });
+      const ids = cardChoices(rngFor(seed, 500 + run.fights), { housePlanets: boss?.planets ?? (boss?.planet ? [boss.planet] : h.planets.map(p => p.name)), cls: r.cls.ruler, count: 3 + (run.perks?.extraChoice ?? 0) - L.fewerChoices });
       if (style === 'careless') run.deck.push(ids[0]);
       else { const best = ids.reduce((a, b) => (value(b) > value(a) ? b : a)); if (value(best) > 5.5 || run.deck.length < 14) run.deck.push(best); else run.prana += 5; }
     } else if (st.kind === 'story') {
@@ -97,7 +99,7 @@ export function simRun(seed: number, style: Style, runNo = 1): { reached: number
       const pick = style === 'careless' ? story.options[rng.int(0, 1)] : story.options.find(o => (o.outcome.hp ?? 0) >= 0 || run.hp > run.maxHp * 0.6) ?? story.options[1];
       if ((pick.outcome.prana ?? 0) + run.prana >= 0 || true) applyOutcome(run, pick.outcome, rng);
     } else if (st.kind === 'rest') {
-      const heal = Math.min(run.maxHp - run.hp, Math.round(run.maxHp * (h.lord === 'Moon' ? 0.5 : 0.3)));
+      const heal = Math.min(run.maxHp - run.hp, Math.round(run.maxHp * ((h.lord === 'Moon' ? 0.5 : 0.3) + (run.perks?.restBonus ?? 0)) * L.restHeal));
       const up = run.deck.findIndex(c => canUpgrade(c) && (style === 'careless' || CARDS[c].type === 'attack' || value(c) > 6));
       if (run.hp < run.maxHp * 0.55 || up < 0) run.hp += heal; else upgradeCard(run, up);
       if (h.lord === 'Sun') { if (up >= 0) upgradeCard(run, up); }
@@ -114,8 +116,10 @@ export function simRun(seed: number, style: Style, runNo = 1): { reached: number
   return { reached: run.over === 'won' ? 13 : run.house, minutes, fights };
 }
 
-export function summary(style: Style, n = 120) {
-  const res = Array.from({ length: n }, (_, i) => simRun(i + 1, style));
+export function maxedPerks(): RunPerks { const m = newMeta(); m.karma = 1e6; for (const u of UPGRADES) for (let i = 0; i < 3; i++) buy(m, u.id); return perksOf(m); }
+
+export function summary(style: Style, n = 120, opts: { life?: number; perks?: RunPerks } = {}) {
+  const res = Array.from({ length: n }, (_, i) => simRun(i + 1, style, 1, opts));
   const avg = res.reduce((a, b) => a + b.reached, 0) / n;
   const wins = res.filter(x => x.reached === 13).length / n;
   const win = res.filter(x => x.reached === 13);
@@ -125,8 +129,10 @@ export function summary(style: Style, n = 120) {
 }
 
 if (process.argv[1]?.endsWith('sim.ts')) {
-  for (const s of ['careless', 'steady'] as const) {
-    const m = summary(s);
+  const P = maxedPerks();
+  for (const [s, life, pk] of [['careless', 1, undefined], ['steady', 1, undefined], ['steady', 1, P], ['steady', 4, P], ['steady', 8, P], ['steady', 12, P]] as const) {
+    const m = summary(s, 120, { life, perks: pk });
+    process.stdout.write(`life ${String(life).padStart(2)} ${pk ? 'all gifts' : 'no gifts '} `);
     console.log(`${s.padEnd(9)} avg house ${m.avg.toFixed(1)} · wins ${(m.wins * 100).toFixed(0)}% · a winning run ≈ ${m.mins.toFixed(0)} min · fights ${m.fights.toFixed(1)} · reached ${m.hist.join(' ')}`);
   }
 }

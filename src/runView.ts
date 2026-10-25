@@ -5,7 +5,7 @@ import { ordinal } from './seed';
 import { GROUND, HOUSE_OPENING, LORE, REMEDY, REST_GIFT } from './content';
 import { advance, applyOutcome, currentStep, houseSteps, PRANA, STEP_NAME, upgradeCard, type RunState, type Step } from './game/run';
 import { STORIES } from './game/stories';
-import { cardChoices, CUT_PRICE, price, SKIP_PRANA } from './game/rewards';
+import { cardChoices, CUT_PRICE, price, SHARPEN_PRICE, SKIP_PRANA } from './game/rewards';
 import { cardFace, pickCard } from './cardsView';
 import { rngFor } from './rng';
 import { saveRun, endRun, markCleared } from './runStore';
@@ -14,6 +14,8 @@ import { CARDS, GIFT_CARD, MAX_LEVEL, canUpgrade, levelOf } from './game/cards';
 import { sfx } from './sound';
 import type { Element, Mods } from './game/combat';
 import { buzz } from './haptics';
+import { lifeRules, runKarma, endOfRun, LIVES } from './game/meta';
+import { withMeta } from './metaStore';
 
 export type RunContext = {
   reading: Reading;
@@ -24,6 +26,7 @@ export type RunContext = {
   moonFromMoon: number;    // today's Moon counted from the birth Moon, for its effects outside fights
   pressingToday: string;   // today's pressing planet, for the shrine's remedy
   back: () => void;        // to the map
+  hub: () => void;         // to the hub, after a run ends
 };
 
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -64,7 +67,7 @@ function playStep(root: HTMLElement, ctx: RunContext) {
   const { reading: r, run } = ctx, step = currentStep(r, run), h = r.houses[run.house - 1];
   if (step.kind === 'story') return storyStep(root, ctx);
   if (step.kind === 'rest') return restStep(root, ctx);
-  const reward = gainPrana(ctx, PRANA[step.kind] * (ctx.moonFromMoon === 2 ? 1.1 : 1), false);
+  const reward = gainPrana(ctx, PRANA[step.kind] * (ctx.moonFromMoon === 2 ? 1.1 : 1) * lifeRules(run.life).prana, false);
   showFight(root, {
     title: `${ordinal(run.house)} house, ${STEP_NAME[step.kind].toLowerCase()}`,
     deck: run.deck, enemies: step.enemies!, ground: h.element as Element,
@@ -97,20 +100,20 @@ function rewardPage(root: HTMLElement, ctx: RunContext, step: Step) {
   const { reading: r, run } = ctx;
   const boss = step.enemies?.find(e => e.planet);
   const planets = boss?.planets ?? (boss?.planet ? [boss.planet] : r.houses[run.house - 1].planets.map(p => p.name));
-  const ids = cardChoices(rngAt(ctx, 500 + run.fights), { housePlanets: planets, cls: r.cls.ruler, count: ctx.moonFromMoon === 5 ? 4 : 3 });
+  const ids = cardChoices(rngAt(ctx, 500 + run.fights), { housePlanets: planets, cls: r.cls.ruler, count: 3 + (ctx.moonFromMoon === 5 ? 1 : 0) + (run.perks?.extraChoice ?? 0) - lifeRules(run.life).fewerChoices });
   page(root, `
     <p class="wordmark">The ${ordinal(run.house)} house · after the fight</p>
     <h1 class="house-title">Take a card</h1>
     <p class="lead">What you fought leaves something behind. Choose one for your deck.</p>
     <div class="card-grid reward">${ids.map((id, i) => cardFace(id, '', `data-take="${i}"`)).join('')}</div>
     <p class="run-stats">Deck: ${run.deck.length} cards · ${run.hp} of ${run.maxHp} health · ${run.prana} prana</p>
-    <div class="run-actions"><button class="link" id="skip">Take none, gain ${SKIP_PRANA} prana</button></div>`);
+    <div class="run-actions"><button class="link" id="skip">Spare it: take no card, gain ${SKIP_PRANA} prana and 1 karma</button></div>`);
   root.querySelectorAll<HTMLElement>('[data-take]').forEach(el => el.addEventListener('click', () => {
     run.deck.push(ids[+el.dataset.take!]);
     buzz('tap');
     next(root, ctx);
   }));
-  root.querySelector('#skip')!.addEventListener('click', () => { gainPrana(ctx, SKIP_PRANA); next(root, ctx); });
+  root.querySelector('#skip')!.addEventListener('click', () => { gainPrana(ctx, SKIP_PRANA); run.karma += 1; next(root, ctx); });
 }
 
 /* After a step: on to the next, or the house is cleared. */
@@ -157,8 +160,11 @@ const bigLamp = `<svg class="lamp big lit" viewBox="0 0 32 32" aria-hidden="true
 
 function restStep(root: HTMLElement, ctx: RunContext) {
   const { reading: r, run } = ctx, h = r.houses[run.house - 1], lord = h.lord;
-  const heal = Math.min(run.maxHp - run.hp, Math.round(run.maxHp * (lord === 'Moon' ? 0.5 : 0.3) * (ctx.moonFromMoon === 4 ? 1.5 : 1)));
+  const L = lifeRules(run.life);
+  const heal = Math.min(run.maxHp - run.hp, Math.round(run.maxHp * ((lord === 'Moon' ? 0.5 : 0.3) + (run.perks?.restBonus ?? 0)) * (ctx.moonFromMoon === 4 ? 1.5 : 1) * L.restHeal));
   const discount = lord === 'Mercury' ? 0.25 : 0;
+  const cost = (id: string) => Math.round(price(id, discount) * L.price), cutCost = Math.round(CUT_PRICE * L.price), sharpenCost = Math.round(SHARPEN_PRICE * L.price);
+  let sharpened = false;
   const stall = cardChoices(rngAt(ctx, 900 + run.house), { housePlanets: [lord], cls: r.cls.ruler, count: lord === 'Jupiter' ? 4 : 3 });
   const bought = new Set<number>();
   let rested = false, meditated = false, freeCut = lord === 'Mars' || ctx.moonFromMoon === 12, remedyDone = !run.pressing;
@@ -197,15 +203,18 @@ function restStep(root: HTMLElement, ctx: RunContext) {
       <section class="rest-part">
         <h2>The keeper's stall</h2>
         <p class="hint">Cards for prana${discount ? ', a quarter off today' : ''}.</p>
-        <div class="card-grid stall">${stall.map((id, i) => `<div class="for-sale${bought.has(i) ? ' sold' : ''}">${cardFace(id, bought.has(i) || run.prana < price(id, discount) ? 'dim' : '', `data-buy="${i}"`)}<span class="price">${bought.has(i) ? 'Taken' : `${price(id, discount)} prana`}</span></div>`).join('')}</div>
-        <button class="link" id="cut">Cut a card from your deck${freeCut ? ' (free here)' : ` for ${CUT_PRICE} prana`}</button>
+        <div class="card-grid stall">${stall.map((id, i) => `<div class="for-sale${bought.has(i) ? ' sold' : ''}">${cardFace(id, bought.has(i) || run.prana < cost(id) ? 'dim' : '', `data-buy="${i}"`)}<span class="price">${bought.has(i) ? 'Taken' : `${cost(id)} prana`}</span></div>`).join('')}</div>
+        <div class="stall-more">
+          <button class="ghost" id="sharpen" ${sharpened || run.prana < sharpenCost || !run.deck.some(canUpgrade) ? 'disabled' : ''}>${sharpened ? 'Sharpened' : `Sharpen a card: ${sharpenCost} prana`}</button>
+          <button class="link" id="cut">Cut a card from your deck${freeCut ? ' (free here)' : ` for ${cutCost} prana`}</button>
+        </div>
       </section>
 
       <section class="rest-part">
         <h2>The shrine</h2>
         <p>The remedy is for <span class="pl-${remPlanet.toLowerCase()}">${remPlanet}</span>: say <span class="mantra small">${rem.mantra}</span> softly 11 times. ${esc(rem.practice)}</p>
         ${run.pressing
-          ? `<button class="ghost" id="remedy">I have done it</button><p class="hint">${run.pressing}'s enemies stop hitting harder for the rest of this run.</p>`
+          ? L.noRefuge ? `<p class="hint">In this life the remedy is still yours to do, but it no longer calms ${run.pressing}.</p>` : `<button class="ghost" id="remedy">I have done it</button><p class="hint">${run.pressing}'s enemies stop hitting harder for the rest of this run.</p>`
           : '<p class="hint">Done. No planet presses on this run.</p>'}
       </section>
 
@@ -228,16 +237,28 @@ function restStep(root: HTMLElement, ctx: RunContext) {
       buzz('yoga'); sfx('upgrade'); saveRun(run); draw();
     });
     root.querySelectorAll<HTMLElement>('[data-buy]').forEach(el => el.addEventListener('click', () => {
-      const i = +el.dataset.buy!, cost = price(stall[i], discount);
-      if (bought.has(i) || run.prana < cost) return;
-      run.prana -= cost; run.deck.push(stall[i]); bought.add(i); buzz('tap'); sfx('buy'); saveRun(run); draw();
+      const i = +el.dataset.buy!, c = cost(stall[i]);
+      if (bought.has(i) || run.prana < c) return;
+      run.prana -= c; run.deck.push(stall[i]); bought.add(i); buzz('tap'); sfx('buy'); saveRun(run); draw();
     }));
     root.querySelector('#cut')!.addEventListener('click', async () => {
-      if (!freeCut && run.prana < CUT_PRICE) return;
+      if (!freeCut && run.prana < cutCost) return;
       const i = await pickCard('Cut a card', run.deck, { note: 'A smaller deck draws its best cards more often.' });
       if (i === null) return;
-      if (!freeCut) run.prana -= CUT_PRICE; else freeCut = false;
+      if (!freeCut) run.prana -= cutCost; else freeCut = false;
       run.deck.splice(i, 1); buzz('tap'); saveRun(run); draw();
+    });
+    root.querySelector('#sharpen')?.addEventListener('click', async () => {
+      if (sharpened || run.prana < sharpenCost) return;
+      sfx('tap');
+      const i = await pickCard('Sharpen a card', run.deck, {
+        disabled: id => !canUpgrade(id), show: id => `${id}+`,
+        label: id => canUpgrade(id) ? `Level ${levelOf(id) + 1} → ${levelOf(id) + 2}` : 'Highest level',
+        note: 'The keeper sharpens one card for prana. This is on top of resting or meditating.',
+      });
+      if (i === null) return;
+      run.prana -= sharpenCost; upgradeCard(run, i); sharpened = true;
+      buzz('yoga'); sfx('upgrade'); saveRun(run); draw();
     });
     root.querySelector('#remedy')?.addEventListener('click', () => { run.pressing = ''; remedyDone = true; buzz('yoga'); saveRun(run); draw(); });
     root.querySelector('#go')!.addEventListener('click', () => { run.restGiftTaken = false; next(root, ctx); });
@@ -263,23 +284,42 @@ function houseClearedPage(root: HTMLElement, ctx: RunContext, n: number) {
   root.querySelector('#map')!.addEventListener('click', ctx.back);
 }
 
+/* The end of a run, won or lost: count the karma, bank it, and say what opened. */
+function settle(ctx: RunContext, won: boolean) {
+  const { run, reading: r } = ctx, life = run.life ?? 1;
+  const k = runKarma({ cleared: run.cleared, story: run.karma, won, life });
+  const { newLife } = withMeta(m => endOfRun(m, r.seed, k.total, won, life));
+  return { ...k, newLife, life };
+}
+
+function karmaTable(lines: { label: string; amount: number }[], total: number) {
+  return `<table class="karma-table">${lines.map(l => `<tr><td>${esc(l.label)}</td><td>${l.amount > 0 ? '+' : ''}${l.amount}</td></tr>`).join('')}
+    <tr class="total"><td>Karma kept</td><td>${total}</td></tr></table>`;
+}
+
 function runOver(root: HTMLElement, ctx: RunContext) {
-  const { run } = ctx;
+  const { run } = ctx, k = settle(ctx, false);
   page(root, `
     <p class="wordmark">The wheel turns</p>
     <h1 class="house-title">You fall in the ${ordinal(run.house)} house</h1>
-    <p class="lead">You cleared ${run.cleared.length} house${run.cleared.length === 1 ? '' : 's'} this time. What you cleared stays cleared, and its readings stay yours.</p>
-    <p class="note">Karma, and the hub where you spend it, arrive on Day 7.</p>
-    <div class="run-actions"><button class="primary" id="map">Back to your chart</button></div>`);
+    <p class="lead">You cleared ${run.cleared.length} house${run.cleared.length === 1 ? '' : 's'} this time. What you cleared stays cleared, and its readings stay yours. Half the karma of this life comes with you.</p>
+    ${karmaTable(k.lines, k.total)}
+    <div class="run-actions"><button class="primary" id="hub">Spend karma in the hub</button><button class="link" id="map">Back to your chart</button></div>`);
+  sfx('lose');
+  root.querySelector('#hub')!.addEventListener('click', ctx.hub);
   root.querySelector('#map')!.addEventListener('click', ctx.back);
 }
 
 function runWonPage(root: HTMLElement, ctx: RunContext) {
+  const k = settle(ctx, true), nl = k.newLife ? LIVES[k.newLife - 1] : null;
   page(root, `
     <p class="wordmark">Beyond the twelfth house</p>
     <h1 class="house-title glow">Released</h1>
-    <p class="lead">You walked all twelve houses of your chart in one life. The whole-chart reading opens.</p>
-    <div class="run-actions"><button class="primary" id="map">Back to your chart</button></div>`);
-  buzz('win');
+    <p class="lead">You walked all twelve houses of your chart in ${k.life > 1 ? `your ${ordinal(k.life)} life` : 'one life'}. The whole-chart reading opens.</p>
+    ${karmaTable(k.lines, k.total)}
+    ${nl ? `<div class="new-life"><p class="wordmark">A new life opens</p><h2>Life ${nl.n}: ${esc(nl.name)}</h2><p>${esc(nl.text)} Every rule of the lives before it stays.</p></div>` : ''}
+    <div class="run-actions"><button class="primary" id="hub">Go to the hub</button><button class="link" id="map">Back to your chart</button></div>`);
+  buzz('win'); sfx('win');
+  root.querySelector('#hub')!.addEventListener('click', ctx.hub);
   root.querySelector('#map')!.addEventListener('click', ctx.back);
 }

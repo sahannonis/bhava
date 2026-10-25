@@ -93,7 +93,7 @@ export function startCombat(o: StartOptions): { state: CombatState; events: Comb
     const def = typeof e === 'string' ? ENEMY_DEFS[e] : e;
     const hp = Math.round(def.hp * (mods.enemyHpMult ?? 1));
     const start = rng.int(0, def.moves.length - 1);
-    return { def, name: def.name, hp, maxHp: hp, block: 0, status: def.might ? { might: def.might } : {}, moveIdx: start, history: [start], attackedThisTurn: false };
+    return { def, name: def.name, hp, maxHp: hp, block: def.block ?? 0, status: def.might ? { might: def.might } : {}, moveIdx: start, history: [start], attackedThisTurn: false };
   });
   const state: CombatState = {
     turn: 0, phase: 'player', ground: o.ground,
@@ -350,7 +350,7 @@ export const ENRAGE: Partial<Record<string, number>> = { planet: 2, boss: 2, gat
 function enrage(s: CombatState, who: Who, events: CombatEvent[]) {
   if (who === 'player') return;
   const e = s.enemies[who], n = ENRAGE[e.def.rank];
-  if (!n || e.enraged || !isAlive(e) || e.hp > e.maxHp / 2) return;
+  if (!n || e.enraged || !isAlive(e) || e.hp > e.maxHp * (e.def.enrageAt ?? 0.5)) return;
   e.enraged = true;
   events.push({ t: 'enrage', who, might: n });
   addStatus(s, who, 'might', n, events);

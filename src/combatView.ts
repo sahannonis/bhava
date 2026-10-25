@@ -4,7 +4,7 @@
 import { CARDS, STATUS_INFO, cardText, type StatusId } from './game/cards';
 import { YOGAS, learnYoga, yogaEffectText, yogaText } from './game/yogas';
 import { buzz } from './haptics';
-import { sfx } from './sound';
+import { sfx, sfxCard } from './sound';
 import { levelPips, nameFit } from './cardsView';
 import { getSettings, setSetting } from './settings';
 import {
@@ -19,7 +19,7 @@ export type FightSetup = {
   deck: string[];
   enemies: (string | EnemyDef)[];
   fight?: number;         // which fight of the run
-  mode?: 'practice' | 'run';
+  mode?: 'practice' | 'run' | 'trial';
   reward?: number;        // prana for winning, in a run
   ground: Ground;
   seed: number;
@@ -298,7 +298,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
             cardEl.style.zIndex = '30';
             const pull = def.type === 'attack' ? [{ transform: 'translate(0,0) scale(1.08)' }, { transform: 'translate(0,14px) scale(1.04)', offset: 0.22 }, { transform: `translate(${dx}px,${dy}px) scale(0.45) rotate(${dx > 0 ? 18 : -18}deg)`, opacity: 0.2 }]
               : [{ transform: 'translate(0,0) scale(1.08)' }, { transform: `translate(${dx * 0.3}px,${dy - 30}px) scale(0.7)`, opacity: 0 }];
-            sfx('card');
+            sfxCard(def.planet);
             await cardEl.animate(pull, { duration: def.type === 'attack' ? 300 : 340, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
           }
           buzz('tap');
@@ -391,17 +391,17 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     await sleep(400);
     const over = document.createElement('div');
     over.className = `over ${result}`;
-    const foe = state.enemies[0].name, run = setup.mode === 'run';
+    const foe = state.enemies[0].name, run = setup.mode === 'run' || setup.mode === 'trial', trial = setup.mode === 'trial';
     const left = `You have ${state.player.hp} of ${state.player.maxHp} health left.`;
     const body = result === 'won'
       ? `${esc(foe)} dissolves back into ink after ${state.turn} turn${state.turn > 1 ? 's' : ''}. ${left}${run && setup.reward ? ` You gather ${setup.reward} prana.` : ''}`
-      : run ? `${esc(foe)} stands over you. The run ends here, and the wheel turns again.` : `${esc(foe)} stands. In a run, this is where the wheel turns again.`;
+      : trial ? `${esc(foe)} holds today. Your streak still counts: you sat the trial.` : run ? `${esc(foe)} stands over you. The run ends here, and the wheel turns again.` : `${esc(foe)} stands. In a run, this is where the wheel turns again.`;
     over.innerHTML = `<div class="over-card" role="dialog" aria-modal="true" aria-labelledby="overTitle">
-        <h2 id="overTitle">${result === 'won' ? (run ? 'Cleared' : 'The shade is cleared') : 'You fall'}</h2>
+        <h2 id="overTitle">${result === 'won' ? (trial ? "Today's trial is won" : run ? 'Cleared' : 'The shade is cleared') : 'You fall'}</h2>
         <p>${body}</p>
         ${run ? '' : '<p class="over-note">This is the practice fight. Begin a run from your chart to walk the twelve houses.</p>'}
         <div class="over-actions">
-          ${run ? `<button class="primary" id="back">${result === 'won' ? 'Continue' : 'Back to your chart'}</button>`
+          ${run ? `<button class="primary" id="back">Continue</button>`
             : '<button class="primary" id="again">Fight again</button><button class="ghost" id="back">Back to your chart</button>'}
         </div>
       </div>`;

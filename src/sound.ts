@@ -154,3 +154,45 @@ export function sfx(kind: Sfx): void {
       break;
   }
 }
+
+/* Each planet's cards have their own voice when played, under the swish of the card. */
+export function sfxCard(planet?: string): void {
+  sfx('card');
+  if (!planet || !getSettings().sound) return;
+  const c = audio();
+  if (!c || !master) return;
+  const t = c.currentTime + 0.05, r = 0.97 + Math.random() * 0.06;
+  switch (planet) {
+    case 'Sun': // a bright brass ring
+      [[392, 0.12], [784, 0.08], [1176, 0.05], [1568, 0.03]].forEach(([f, v]) => tone(c, t, { f: f * r, type: 'sawtooth', dur: 0.5, vol: v * 0.5, attack: 0.02 }));
+      bell(c, t, 1568 * r, 0.05, 0.6);
+      break;
+    case 'Moon': // a soft chime
+      bell(c, t, 1318 * r, 0.09, 1.4); bell(c, t, 1976 * r, 0.05, 1.1, 0.12);
+      break;
+    case 'Mars': // a war drum
+      tone(c, t, { f: 90 * r, dur: 0.3, vol: 0.5, to: 50 });
+      noise(c, t, { dur: 0.08, vol: 0.25, freq: 900, q: 0.8 });
+      tone(c, t, { f: 90 * r, at: 0.12, dur: 0.25, vol: 0.35, to: 50 });
+      break;
+    case 'Mercury': // a quick flute run
+      [880, 988, 1175].forEach((f, i) => { tone(c, t, { f: f * r, at: i * 0.05, dur: 0.12, vol: 0.08, attack: 0.02 }); noise(c, t, { at: i * 0.05, dur: 0.1, vol: 0.02, freq: f * 2, q: 6 }); });
+      break;
+    case 'Jupiter': // a deep bell
+      bell(c, t, 220 * r, 0.2, 2.2);
+      break;
+    case 'Venus': // a harp pluck
+      [523, 659, 784].forEach((f, i) => { tone(c, t, { f: f * r, at: i * 0.045, dur: 0.7, vol: 0.09, type: 'triangle', attack: 0.003 }); tone(c, t, { f: f * 2 * r, at: i * 0.045, dur: 0.3, vol: 0.03, attack: 0.003 }); });
+      break;
+    case 'Saturn': // a low gong
+      tone(c, t, { f: 73, dur: 2, vol: 0.25, attack: 0.02 }); tone(c, t, { f: 110.5, dur: 1.4, vol: 0.1, attack: 0.02 }); tone(c, t, { f: 183, dur: 0.9, vol: 0.05, attack: 0.02 });
+      break;
+    case 'Rahu': // a smoky rush
+      noise(c, t, { dur: 0.7, vol: 0.18, freq: 300, q: 0.7, to: 2400, attack: 0.25 });
+      tone(c, t, { f: 98, dur: 0.7, vol: 0.12, to: 82, type: 'sawtooth', attack: 0.2 });
+      break;
+    case 'Ketu': // a dry rattle
+      for (let i = 0; i < 6; i++) noise(c, t, { at: i * 0.035, dur: 0.03, vol: 0.16, freq: 3500 + i * 200, q: 4 });
+      break;
+  }
+}

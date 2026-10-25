@@ -14,6 +14,10 @@ import { ENEMIES, GROUND, KIND_NAME, REMEDY, REST_GIFT, TRANSIT_LINE } from './c
 import { moonSvg, todaySky, type Sky } from './today';
 import { startStarlight } from './ambience';
 import { sfx, unlockAudio } from './sound';
+import { showHub } from './hubView';
+import { canRemind, refreshReminder, setReminder } from './remind';
+import { loadMeta, withMeta } from './metaStore';
+import { chosenLife, endOfRun, perks, runKarma, streakNow, triesLeft, wonToday } from './game/meta';
 import { YOGAS, knownYogas, yogaEffectText, yogaText } from './game/yogas';
 import { showFight } from './combatView';
 import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
@@ -232,6 +236,8 @@ function showChart(r: Reading) {
   const run = loadRun();
   const cleared = loadCleared();
   const current = run ? run.house : 1;
+  const mm = loadMeta(), today = sky.dayKey;
+  const meta = { karma: mm.karma, lifeNext: chosenLife(mm, r.seed), streak: streakNow(mm, today), trialOpen: triesLeft(mm, today) > 0 && !wonToday(mm, today) };
   let selected = current;
   let mode: 'birth' | 'sky' = 'birth';
 
@@ -254,8 +260,9 @@ function showChart(r: Reading) {
     <div class="enter">
       ${run ? `<button class="primary" id="begin">Continue in the ${ordinal(run.house)} house</button>
         <small>${run.hp} of ${run.maxHp} health · ${run.prana} prana · next: ${STEP_NAME[houseSteps(r, run, run.house)[run.step].kind].toLowerCase()}</small>`
-        : `<button class="primary" id="begin">Begin your run</button>
+        : `<button class="primary" id="begin">Begin your run${meta.lifeNext > 1 ? ` · life ${meta.lifeNext}` : ''}</button>
         <small>Walk your twelve houses in order, from the self to release.${cleared.length ? ` Cleared so far: ${cleared.length} of 12.` : ''}</small>`}
+      <button class="ghost hub-link" id="hub"><span>The hub</span><small>${meta.karma} karma${meta.trialOpen ? " · today's trial is waiting" : meta.streak ? ` · ${meta.streak}-day streak` : ''}</small></button>
       <div class="enter-more">
         <button class="link" id="enter">Practice fight</button>
         <button class="link" id="yogaBook">Book of Yogas (${knownYogas().length} of ${YOGAS.length})</button>
@@ -270,6 +277,7 @@ function showChart(r: Reading) {
         <label class="switch"><input type="checkbox" id="vibe" ${getSettings().vibration ? 'checked' : ''} /> <span>Vibration</span></label>
         <button class="link" id="vibeTest">Test it</button>
         <label class="switch"><input type="checkbox" id="snd" ${getSettings().sound ? 'checked' : ''} /> <span>Sound</span></label>
+        ${canRemind() ? `<label class="switch"><input type="checkbox" id="remind" ${getSettings().reminder ? 'checked' : ''} /> <span>Morning sky reminder, 8 am</span></label>` : ''}
         <button class="link" id="guideAgain">Show the fight guide again</button>
       </div>
       <button class="link" id="forget">Forget my birth on this phone</button>
@@ -278,6 +286,11 @@ function showChart(r: Reading) {
 
   document.getElementById('vibe')!.addEventListener('change', e => setSetting('vibration', (e.target as HTMLInputElement).checked));
   document.getElementById('vibeTest')!.addEventListener('click', () => buzz('win', true));
+  document.getElementById('remind')?.addEventListener('change', async e => {
+    const box = e.target as HTMLInputElement;
+    box.checked = await setReminder(r, box.checked);
+  });
+  refreshReminder(r);
   document.getElementById('snd')!.addEventListener('change', e => { setSetting('sound', (e.target as HTMLInputElement).checked); sfx('yoga'); });
   document.getElementById('yogaBook')!.addEventListener('click', () => { sfx('tap'); showYogaBook(); });
   document.getElementById('guideAgain')!.addEventListener('click', e => { setSetting('guideDone', false); (e.target as HTMLElement).textContent = 'The guide will show in your next fight'; });
@@ -320,9 +333,15 @@ function showChart(r: Reading) {
   document.getElementById('forget')!.addEventListener('click', async () => { await forgetBirth(); showBirth(null); });
   document.getElementById('enter')!.addEventListener('click', () => startPractice(r, sky));
   document.getElementById('begin')!.addEventListener('click', () => beginOrContinue(r, sky, run));
+  document.getElementById('hub')!.addEventListener('click', () => { sfx('tap'); openHub(r, sky); });
   document.getElementById('giveUp')?.addEventListener('click', e => {
     const b = e.target as HTMLButtonElement;
-    if (b.dataset.sure) { endRun(); showChart(r); } else { b.dataset.sure = '1'; b.textContent = 'Tap again to give up the run'; }
+    if (b.dataset.sure && run) {
+      // giving up is falling: half the karma of this life is kept
+      const k = runKarma({ cleared: run.cleared, story: run.karma, won: false, life: run.life ?? 1 });
+      withMeta(m => endOfRun(m, r.seed, k.total, false, run.life ?? 1));
+      endRun(); showChart(r);
+    } else { b.dataset.sure = '1'; b.textContent = 'Tap again to give up the run'; }
   });
   window.scrollTo(0, 0);
 }
@@ -345,13 +364,24 @@ function beginOrContinue(r: Reading, sky: Sky, existing: RunState | null) {
   const fm = fightMods(sky);
   let run = existing;
   if (!run) {
-    run = newRun(r, nextRunNumber(), { maxHpBonus: fm.maxHpBonus, pressing: sky.pressing });
+    const m = loadMeta();
+    run = newRun(r, nextRunNumber(), { maxHpBonus: fm.maxHpBonus, pressing: sky.pressing, life: chosenLife(m, r.seed), perks: perks(m) });
     if (sky.fromMoon === 9) run.deck[run.deck.length - 3] += '+'; // the 9th from your Moon: your signature card starts upgraded
   }
   saveRun(run);
   continueRun(app, {
     reading: r, run, mods: { ...fm.mods, cls: r.cls.ruler }, modNote: fm.note,
     blessing: sky.blessing, moonFromMoon: sky.fromMoon, pressingToday: sky.pressing, back: () => showChart(r),
+    hub: () => openHub(r, todaySky(r)),
+  });
+}
+
+function openHub(r: Reading, sky: Sky) {
+  const fm = fightMods(sky);
+  window.scrollTo(0, 0);
+  showHub(app, {
+    reading: r, sky, mods: { ...fm.mods, cls: r.cls.ruler, giftCard: undefined }, modNote: fm.note,
+    back: () => showChart(r), play: () => beginOrContinue(r, sky, loadRun()), hasRun: !!loadRun(),
   });
 }
 

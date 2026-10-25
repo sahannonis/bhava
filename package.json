@@ -6,7 +6,7 @@
     "dev": "vite --host",
     "build": "tsc && vite build",
     "build:preview": "vite build --mode preview",
-    "test": "node --test tests/engine.test.cjs && node --import tsx --test tests/rng.test.ts tests/combat.test.ts tests/run.test.ts tests/day6.test.ts",
+    "test": "node --test tests/engine.test.cjs && node --import tsx --test tests/rng.test.ts tests/combat.test.ts tests/run.test.ts tests/day6.test.ts tests/day7.test.ts",
     "android": "npm run build && npx cap sync android"
   },
   "author": "",
@@ -23,6 +23,7 @@
     "@capacitor/android": "^8.5.3",
     "@capacitor/core": "^8.5.3",
     "@capacitor/haptics": "^8.0.2",
+    "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/preferences": "^8.0.1",
     "@fontsource/alegreya": "^5.3.0",
     "@fontsource/marcellus": "^5.3.0",

@@ -21,6 +21,8 @@ export type EnemyDef = {
   moves: Move[];
   order: 'cycle' | 'random'; // cycle: in order from a seeded start; random: seeded, never the same move three times running
   might?: number;    // starts the fight with this much might
+  block?: number;    // starts the fight with this much block (later lives)
+  enrageAt?: number; // share of health at which it grows enraged (planets, bosses, the gate); 0.5 if not set
   rank: 'lesser' | 'planet' | 'boss' | 'gate' | 'practice';
 };
 

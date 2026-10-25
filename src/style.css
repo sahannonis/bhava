@@ -715,3 +715,38 @@ body::after {
 .foe-row:has(.foe + .foe) .foe-name { text-align: center; line-height: 1.1; }
 .foe.enraged .foe-figure svg { filter: drop-shadow(0 0 10px rgba(255, 90, 42, 0.85)); }
 .foe.enraged .eye { fill: #ffb08a; }
+
+/* ---------- Day 7: the hub, karma, lives, the daily trial ---------- */
+.hub-link { display: grid; justify-items: center; gap: 2px; width: 100%; min-height: 56px; margin-top: 8px; }
+.hub-link span { font: 400 1.15rem var(--display); }
+.hub-link small { font-size: 0.85rem; color: var(--soot-soft); }
+.karma-big { font-family: var(--display); font-size: 1.1rem; display: flex; align-items: baseline; gap: 10px; }
+.karma-big span { font-size: 2.6rem; line-height: 1; text-shadow: 0 0 18px rgba(255, 200, 90, 0.9); }
+.trial { background: radial-gradient(120% 90% at 50% 0%, rgba(255, 220, 140, 0.35), transparent 70%); }
+.streak { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.streak .lamp { width: 30px; height: 30px; }
+.streak b { font: 400 1.6rem var(--display); margin-left: 10px; }
+.streak small { margin-left: 6px; color: var(--soot-soft); }
+.lives { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.life { min-height: 44px; border: 1.5px solid var(--soot); border-radius: 50%; aspect-ratio: 1; background: rgba(250, 241, 210, 0.5); font: 400 1.1rem var(--display); color: var(--soot); cursor: pointer; }
+.life.on { background: var(--soot); color: #ffd98a; box-shadow: 0 0 14px rgba(255, 200, 90, 0.8); }
+.life:disabled { opacity: 0.3; border-style: dashed; cursor: default; }
+.life-rules { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 0.95rem; }
+.ups { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.up { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1.2px solid rgba(36, 30, 21, 0.5); border-radius: 8px; background: rgba(250, 241, 210, 0.45); }
+.up b { font: 400 1.1rem var(--display); }
+.up p { font-size: 0.92rem; margin-top: 2px; }
+.up .pips { color: #8a6410; letter-spacing: 2px; font-size: 0.8rem; }
+.up .ghost { flex: none; min-width: 64px; min-height: 44px; font: 400 1.1rem var(--display); }
+.up .ghost::after { content: ' karma'; font-size: 0.7rem; }
+.up .ghost:disabled { opacity: 0.45; }
+.up .owned { flex: none; font-style: italic; color: #7a5a10; }
+.karma-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.karma-table td { padding: 6px 0; border-bottom: 1px solid rgba(36, 30, 21, 0.2); }
+.karma-table td:last-child { text-align: right; font-family: var(--display); }
+.karma-table .total td { border-bottom: 0; font: 400 1.3rem var(--display); padding-top: 10px; }
+.new-life { padding: 14px; border: 1.5px solid #b8860b; border-radius: 10px; background: rgba(255, 233, 168, 0.5); box-shadow: 0 0 22px rgba(255, 200, 90, 0.6); }
+.new-life h2 { font-size: 1.4rem; margin: 2px 0 6px; }
+.stall-more { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.stall-more .ghost { min-height: 48px; padding: 6px 14px; }
+.stall-more .ghost:disabled { opacity: 0.45; }

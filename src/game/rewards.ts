@@ -27,3 +27,4 @@ export function price(id: string, discount = 0): number {
   return Math.round(base * (1 - discount));
 }
 export const CUT_PRICE = 30;
+export const SHARPEN_PRICE = 40; // the keeper raises one card a level
