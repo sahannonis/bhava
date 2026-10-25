@@ -1,0 +1,9 @@
+   {
+     "appId": "com.twelfthhouseprotocol.bhava",
+     "appName": "Bhava",
+     "webDir": "dist",
+     "backgroundColor": "#d6c28c",
+     "android": {
+       "allowMixedContent": false
+     }
+   }
