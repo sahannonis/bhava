@@ -1,9 +1,13 @@
 /* Walking a run: the opening of each house, its steps, and what comes after a fight.
-   Story choices and the full rest place arrive on Day 6; karma and the hub on Day 7. */
+   Karma and the hub arrive on Day 7. */
 import type { Reading } from './seed';
 import { ordinal } from './seed';
-import { GROUND, HOUSE_OPENING, REST_GIFT } from './content';
-import { advance, currentStep, houseSteps, PRANA, STEP_NAME, type RunState, type Step } from './game/run';
+import { GROUND, HOUSE_OPENING, LORE, REMEDY, REST_GIFT } from './content';
+import { advance, applyOutcome, currentStep, houseSteps, PRANA, STEP_NAME, upgradeCard, type RunState, type Step } from './game/run';
+import { STORIES } from './game/stories';
+import { cardChoices, CUT_PRICE, price, SKIP_PRANA } from './game/rewards';
+import { cardFace, pickCard } from './cardsView';
+import { rngFor } from './rng';
 import { saveRun, endRun, markCleared } from './runStore';
 import { showFight } from './combatView';
 import { GIFT_CARD } from './game/cards';
@@ -16,6 +20,8 @@ export type RunContext = {
   mods: Mods;              // today's fight effects and the class
   modNote?: string;
   blessing: string | null; // today's planet lending a card
+  moonFromMoon: number;    // today's Moon counted from the birth Moon, for its effects outside fights
+  pressingToday: string;   // today's pressing planet, for the shrine's remedy
   back: () => void;        // to the map
 };
 
@@ -57,7 +63,7 @@ function playStep(root: HTMLElement, ctx: RunContext) {
   const { reading: r, run } = ctx, step = currentStep(r, run), h = r.houses[run.house - 1];
   if (step.kind === 'story') return storyStep(root, ctx);
   if (step.kind === 'rest') return restStep(root, ctx);
-  const reward = PRANA[step.kind];
+  const reward = gainPrana(ctx, PRANA[step.kind] * (ctx.moonFromMoon === 2 ? 1.1 : 1), false);
   showFight(root, {
     title: `${ordinal(run.house)} house, ${STEP_NAME[step.kind].toLowerCase()}`,
     deck: run.deck, enemies: [step.enemy!], ground: h.element as Element,
@@ -71,8 +77,38 @@ function playStep(root: HTMLElement, ctx: RunContext) {
     if (res.result === 'lost') { run.over = 'lost'; endRun(); return runOver(root, ctx); }
     run.hp = res.hp;
     run.prana += reward;
-    next(root, ctx);
+    saveRun(run);
+    rewardPage(root, ctx, step);
   });
+}
+
+/* Prana with today's Moon: the 11th from your Moon adds a quarter to all of it. */
+function gainPrana(ctx: RunContext, n: number, apply = true): number {
+  const got = Math.round(n * (ctx.moonFromMoon === 11 ? 1.25 : 1));
+  if (apply) ctx.run.prana += got;
+  return got;
+}
+
+const rngAt = (ctx: RunContext, salt: number) => rngFor(ctx.reading.seed, ctx.run.run * 1000 + salt);
+
+/* After a won fight: pick one of three cards, or take a little prana instead. */
+function rewardPage(root: HTMLElement, ctx: RunContext, step: Step) {
+  const { reading: r, run } = ctx;
+  const planets = step.enemy?.planets ?? (step.enemy?.planet ? [step.enemy.planet] : r.houses[run.house - 1].planets.map(p => p.name));
+  const ids = cardChoices(rngAt(ctx, 500 + run.fights), { housePlanets: planets, cls: r.cls.ruler, count: ctx.moonFromMoon === 5 ? 4 : 3 });
+  page(root, `
+    <p class="wordmark">The ${ordinal(run.house)} house · after the fight</p>
+    <h1 class="house-title">Take a card</h1>
+    <p class="lead">What you fought leaves something behind. Choose one for your deck.</p>
+    <div class="card-grid reward">${ids.map((id, i) => cardFace(id, '', `data-take="${i}"`)).join('')}</div>
+    <p class="run-stats">Deck: ${run.deck.length} cards · ${run.hp} of ${run.maxHp} health · ${run.prana} prana</p>
+    <div class="run-actions"><button class="link" id="skip">Take none, gain ${SKIP_PRANA} prana</button></div>`);
+  root.querySelectorAll<HTMLElement>('[data-take]').forEach(el => el.addEventListener('click', () => {
+    run.deck.push(ids[+el.dataset.take!]);
+    buzz('tap');
+    next(root, ctx);
+  }));
+  root.querySelector('#skip')!.addEventListener('click', () => { gainPrana(ctx, SKIP_PRANA); next(root, ctx); });
 }
 
 /* After a step: on to the next, or the house is cleared. */
@@ -87,34 +123,109 @@ function next(root: HTMLElement, ctx: RunContext) {
 }
 
 function storyStep(root: HTMLElement, ctx: RunContext) {
-  const { run } = ctx, o = HOUSE_OPENING[run.house - 1];
+  const { run } = ctx, story = STORIES[run.house - 1], o = HOUSE_OPENING[run.house - 1];
   page(root, `
-    <p class="wordmark">The ${ordinal(run.house)} house · a story</p>
-    <h1 class="house-title">A choice about ${esc(o.rules)}</h1>
-    <p class="lead">Here the house will ask you something, and karma will remember your answer.</p>
-    <p class="note">The twelve story choices arrive in the next build.</p>
-    <div class="run-actions"><button class="primary" id="go">Walk on</button></div>`);
-  root.querySelector('#go')!.addEventListener('click', () => next(root, ctx));
+    <p class="wordmark">The ${ordinal(run.house)} house · ${esc(o.rules)}</p>
+    <div class="scene" aria-hidden="true"><span></span><span></span><span></span></div>
+    <p class="lead story-text">${esc(story.scene)}</p>
+    <div class="choices">${story.options.map((op, i) => `<button class="choice" data-choice="${i}">${esc(op.label)}</button>`).join('')}</div>
+    <p class="run-stats">${run.hp} of ${run.maxHp} health · ${run.prana} prana</p>`);
+  root.querySelectorAll<HTMLElement>('[data-choice]').forEach(el => el.addEventListener('click', () => {
+    const op = story.options[+el.dataset.choice!];
+    const notes = applyOutcome(run, op.outcome, rngAt(ctx, 700 + run.house));
+    saveRun(run);
+    buzz('tap');
+    page(root, `
+      <p class="wordmark">The ${ordinal(run.house)} house · ${esc(o.rules)}</p>
+      <p class="chosen-line">${esc(op.label)}</p>
+      <p class="lead story-text">${esc(op.outcome.text)}</p>
+      ${notes.length ? `<p class="outcome">${esc(notes.join(' · '))}</p>` : ''}
+      <p class="karma-note">${op.outcome.karma > 0 ? 'Karma remembers this kindly.' : op.outcome.karma < 0 ? 'Karma remembers this too.' : 'Karma notes it, and waits.'}</p>
+      <div class="run-actions"><button class="primary" id="go">Walk on</button></div>`);
+    root.querySelector('#go')!.addEventListener('click', () => next(root, ctx));
+  }));
 }
 
+/* A clay lamp, larger, for the rest place. */
+const bigLamp = `<svg class="lamp big lit" viewBox="0 0 32 32" aria-hidden="true">
+  <path class="lamp-flame" d="M16 4 C18 8 20 10 20 13 A4 4 0 0 1 12 13 C12 10 14 8 16 4 Z" />
+  <path class="lamp-bowl" d="M4 19 H28 C27 25 22 28 16 28 C10 28 5 25 4 19 Z" />
+  <path class="lamp-lip" d="M26 19 L30 16" />
+</svg>`;
+
 function restStep(root: HTMLElement, ctx: RunContext) {
-  const { reading: r, run } = ctx, h = r.houses[run.house - 1];
-  const share = h.lord === 'Moon' ? 0.5 : 0.3, amount = Math.min(run.maxHp - run.hp, Math.round(run.maxHp * share));
-  page(root, `
-    <p class="wordmark">The ${ordinal(run.house)} house · a rest place</p>
-    <h1 class="house-title">A lamp is lit for you</h1>
-    <p class="lead">The house is empty of planets. Its lord, ${h.lord}, sits in your ${ordinal(h.lordHouse)} house and keeps this place.</p>
-    <p class="gift"><b>${esc(REST_GIFT[h.lord])}</b></p>
-    <p class="run-stats">${run.hp} of ${run.maxHp} health · ${run.prana} prana</p>
-    <p class="note">Upgrading cards, buying with prana, the lore stone and the shrine arrive in the next build.</p>
-    <div class="run-actions"><button class="primary" id="rest">Rest${amount > 0 ? ` and heal ${amount}` : ''}</button></div>`);
-  root.querySelector('#rest')!.addEventListener('click', () => {
-    run.hp += amount;
-    if (h.lord === 'Saturn') { run.maxHp += 4; run.hp += 4; }
-    if (h.lord === 'Venus') run.prana += 10;
-    buzz('tap');
-    next(root, ctx);
-  });
+  const { reading: r, run } = ctx, h = r.houses[run.house - 1], lord = h.lord;
+  const heal = Math.min(run.maxHp - run.hp, Math.round(run.maxHp * (lord === 'Moon' ? 0.5 : 0.3) * (ctx.moonFromMoon === 4 ? 1.5 : 1)));
+  const discount = lord === 'Mercury' ? 0.25 : 0;
+  const stall = cardChoices(rngAt(ctx, 900 + run.house), { housePlanets: [lord], cls: r.cls.ruler, count: lord === 'Jupiter' ? 4 : 3 });
+  const bought = new Set<number>();
+  let rested = false, freeCut = lord === 'Mars' || ctx.moonFromMoon === 12, remedyDone = !run.pressing;
+  // Arrival gifts that need no choice
+  if (lord === 'Saturn' && !run.restGiftTaken) { run.maxHp += 4; run.hp += 4; }
+  if (lord === 'Venus' && !run.restGiftTaken) gainPrana(ctx, 10);
+  run.restGiftTaken = true;
+  saveRun(run);
+  const remPlanet = run.pressing || ctx.pressingToday, rem = REMEDY[remPlanet];
+
+  const draw = () => {
+    page(root, `
+      <p class="wordmark">The ${ordinal(run.house)} house · a rest place</p>
+      <div class="rest-head">${bigLamp}<h1 class="house-title">A lamp is lit for you</h1></div>
+      <p class="lead">No planet lives in this house. Its lord, ${lord}, sits in your ${ordinal(h.lordHouse)} house and keeps this place for you.</p>
+      <p class="gift"><b>${esc(REST_GIFT[lord])}</b></p>
+      <p class="run-stats" id="stats">${run.hp} of ${run.maxHp} health · ${run.prana} prana · deck ${run.deck.length}</p>
+
+      <section class="rest-part">
+        <h2>Rest or meditate</h2>
+        <p class="hint">${lord === 'Sun' ? 'The Sun keeps this place: you may do both.' : 'Choose one.'}</p>
+        <div class="rest-row">
+          <button class="ghost" id="rest" ${rested || heal <= 0 ? 'disabled' : ''}>Rest: heal ${heal}</button>
+          <button class="ghost" id="meditate" ${rested && lord !== 'Sun' ? 'disabled' : ''}>Meditate: upgrade a card</button>
+        </div>
+      </section>
+
+      <section class="rest-part">
+        <h2>The keeper's stall</h2>
+        <p class="hint">Cards for prana${discount ? ', a quarter off today' : ''}.</p>
+        <div class="card-grid stall">${stall.map((id, i) => `<div class="for-sale${bought.has(i) ? ' sold' : ''}">${cardFace(id, bought.has(i) || run.prana < price(id, discount) ? 'dim' : '', `data-buy="${i}"`)}<span class="price">${bought.has(i) ? 'Taken' : `${price(id, discount)} prana`}</span></div>`).join('')}</div>
+        <button class="link" id="cut">Cut a card from your deck${freeCut ? ' (free here)' : ` for ${CUT_PRICE} prana`}</button>
+      </section>
+
+      <section class="rest-part">
+        <h2>The shrine</h2>
+        <p>The remedy is for <span class="pl-${remPlanet.toLowerCase()}">${remPlanet}</span>: say <span class="mantra small">${rem.mantra}</span> softly 11 times. ${esc(rem.practice)}</p>
+        ${run.pressing
+          ? `<button class="ghost" id="remedy">I have done it</button><p class="hint">${run.pressing}'s enemies stop hitting harder for the rest of this run.</p>`
+          : '<p class="hint">Done. No planet presses on this run.</p>'}
+      </section>
+
+      <details class="rest-part lore"><summary>Read the lore stone</summary><p>${esc(LORE[(run.house + run.run) % LORE.length])}</p></details>
+
+      <div class="run-actions"><button class="primary" id="go">Walk on</button></div>`);
+
+    root.querySelector('#rest')?.addEventListener('click', () => { run.hp += heal; rested = true; buzz('tap'); saveRun(run); draw(); });
+    root.querySelector('#meditate')?.addEventListener('click', async () => {
+      const i = await pickCard('Upgrade a card', run.deck, { disabled: id => id.endsWith('+'), note: 'An upgraded card keeps its name with a + and grows stronger.' });
+      if (i === null) return;
+      upgradeCard(run, i); rested = true; buzz('yoga'); saveRun(run); draw();
+    });
+    root.querySelectorAll<HTMLElement>('[data-buy]').forEach(el => el.addEventListener('click', () => {
+      const i = +el.dataset.buy!, cost = price(stall[i], discount);
+      if (bought.has(i) || run.prana < cost) return;
+      run.prana -= cost; run.deck.push(stall[i]); bought.add(i); buzz('tap'); saveRun(run); draw();
+    }));
+    root.querySelector('#cut')!.addEventListener('click', async () => {
+      if (!freeCut && run.prana < CUT_PRICE) return;
+      const i = await pickCard('Cut a card', run.deck, { note: 'A smaller deck draws its best cards more often.' });
+      if (i === null) return;
+      if (!freeCut) run.prana -= CUT_PRICE; else freeCut = false;
+      run.deck.splice(i, 1); buzz('tap'); saveRun(run); draw();
+    });
+    root.querySelector('#remedy')?.addEventListener('click', () => { run.pressing = ''; remedyDone = true; buzz('yoga'); saveRun(run); draw(); });
+    root.querySelector('#go')!.addEventListener('click', () => { run.restGiftTaken = false; next(root, ctx); });
+    void remedyDone;
+  };
+  draw();
 }
 
 function houseClearedPage(root: HTMLElement, ctx: RunContext, n: number) {

@@ -156,6 +156,25 @@ function housePanel(r: Reading, n: number, current: number): string {
     <p class="where">${where} Clear it to read what this house says about you.</p>`;
 }
 
+/* The numbers behind the chart, for anyone who wants to check them. */
+const dms = (deg: number) => { const d = Math.floor(deg), m = Math.floor((deg - d) * 60); return `${d}\u00b0${String(m).padStart(2, '0')}\u2032`; };
+function chartDetails(r: Reading): string {
+  const c = r.chart as Reading['chart'] & { ayanamsa: number; lagna: { nakName?: string; pada?: number } };
+  const rows = [
+    `<tr><th scope="row">Lagna</th><td>${E_SIGN(c.lagna.sign)} ${dms(c.lagna.deg)}</td><td>${c.lagna.nakName ?? ''}${c.lagna.pada ? ` ${c.lagna.pada}` : ''}</td><td>1</td><td>${r.timeKnown ? '' : 'from the Moon'}</td></tr>`,
+    ...c.planets.map(p => `<tr><th scope="row" class="pl-${p.name.toLowerCase()}">${p.name}</th><td>${E_SIGN(p.sign)} ${dms(p.deg)}</td><td>${p.nakName} ${p.pada}</td><td>${p.house}</td><td>${[p.dignity, p.retro && p.name !== 'Rahu' && p.name !== 'Ketu' ? 'retrograde' : ''].filter(Boolean).join(', ')}</td></tr>`),
+  ].join('');
+  const utc = new Date(r.utc).toISOString().replace('T', ' ').slice(0, 16);
+  return `<details class="details" id="details">
+    <summary>Your chart in detail</summary>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Body</th><th scope="col">Sign and degree</th><th scope="col">Nakshatra, pada</th><th scope="col">House</th><th scope="col">Notes</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <p class="method">Worked out the way a Jyotishi does: the sidereal zodiac with the Lahiri ayanamsa (${dms(c.ayanamsa)} at your birth), whole-sign houses counted from your lagna, and your birth moment turned into world time with the clock your birthplace used then (${utc} UTC, ${r.offset}). Planet positions come from Astronomy Engine and match Swiss Ephemeris, the astrologers' standard, to within 20 arcseconds across 300 test charts.</p>
+  </details>`;
+}
+
 /* What today's planets are doing over one house. */
 function skyPanel(r: Reading, n: number, sky: Sky): string {
   const h = r.houses[n - 1];
@@ -242,6 +261,7 @@ function showChart(r: Reading) {
     </div>
     <footer class="actions">
       <p class="born">Born ${esc(local)}${r.timeKnown ? '' : ' (time unknown)'}, ${esc(placeLabel(r.birth.place))}, ${r.offset}</p>
+      ${chartDetails(r)}
       <button class="ghost" id="edit">Change my birth</button>
       <div class="settings">
         <label class="switch"><input type="checkbox" id="vibe" ${getSettings().vibration ? 'checked' : ''} /> <span>Vibration</span></label>
@@ -317,11 +337,15 @@ function fightMods(sky: Sky): { mods: Mods; maxHpBonus: number; note?: string } 
 
 function beginOrContinue(r: Reading, sky: Sky, existing: RunState | null) {
   const fm = fightMods(sky);
-  const run = existing ?? newRun(r, nextRunNumber(), { maxHpBonus: fm.maxHpBonus, pressing: sky.pressing });
+  let run = existing;
+  if (!run) {
+    run = newRun(r, nextRunNumber(), { maxHpBonus: fm.maxHpBonus, pressing: sky.pressing });
+    if (sky.fromMoon === 9) run.deck[run.deck.length - 3] += '+'; // the 9th from your Moon: your signature card starts upgraded
+  }
   saveRun(run);
   continueRun(app, {
     reading: r, run, mods: { ...fm.mods, cls: r.cls.ruler }, modNote: fm.note,
-    blessing: sky.blessing, back: () => showChart(r),
+    blessing: sky.blessing, moonFromMoon: sky.fromMoon, pressingToday: sky.pressing, back: () => showChart(r),
   });
 }
 

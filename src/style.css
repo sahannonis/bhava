@@ -607,3 +607,73 @@ body::after {
 .tint-mercury .eye { fill: #9be8b0; } .tint-jupiter .eye { fill: #ffc06a; } .tint-venus .eye { fill: #ffb3dc; }
 .tint-saturn .eye { fill: #a8b8ff; } .tint-rahu .eye { fill: #c9b0ff; } .tint-ketu .eye { fill: #f0c08e; }
 .tint-fire .eye { fill: #ffa25c; } .tint-earth .eye { fill: #e8cf98; } .tint-air .eye { fill: #d6ecff; } .tint-water .eye { fill: #9fe0e0; }
+
+/* ---------- Day 6: rewards, stories, the rest place, living enemies ---------- */
+.card.face { transform: none; flex: none; width: 100%; max-width: 150px; height: auto; min-height: 168px; margin: 0; padding-bottom: 30px; }
+.card.face .card-text { font-size: 0.85rem; }
+.card.face.upgraded { box-shadow: 0 0 0 1.5px #ffd36e, 0 4px 10px rgba(36, 30, 21, 0.18); }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 16px 10px; justify-items: center; padding-top: 10px; }
+.card-grid.reward { grid-template-columns: repeat(3, 1fr); }
+.card-grid.reward .card.face { animation: deal 420ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards; }
+.card-grid.reward .card.face:nth-child(2) { animation-delay: 90ms; }
+.card-grid.reward .card.face:nth-child(3) { animation-delay: 180ms; }
+.card-grid.reward .card.face:nth-child(4) { animation-delay: 270ms; }
+.card.face:active { transform: scale(0.97); }
+.for-sale { display: grid; gap: 4px; justify-items: center; width: 100%; }
+.price { font-family: var(--display); font-size: 0.95rem; }
+.for-sale.sold { opacity: 0.6; }
+
+.sheet { position: fixed; inset: 0; z-index: 80; background: rgba(36, 30, 21, 0.5); display: grid; align-items: end; animation: fade-from 0.25s ease-out; }
+.sheet-card { max-height: 86dvh; overflow-y: auto; padding: 18px var(--gutter) calc(env(safe-area-inset-bottom) + 24px); background: linear-gradient(#f0e4bd, #e4d4a4); border-top: 1.5px solid var(--soot); border-radius: 10px 10px 0 0; animation: sheet-up 0.3s cubic-bezier(0.2, 0.8, 0.3, 1); }
+@keyframes sheet-up { from { transform: translateY(40px); } }
+.sheet-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.sheet-head h2 { font-size: 1.4rem; }
+
+.scene { position: relative; height: 90px; margin: 4px 0; }
+.scene span { position: absolute; left: 50%; top: 50%; width: 120px; height: 60px; border-radius: 50%; background: radial-gradient(closest-side, rgba(36, 30, 21, 0.35), transparent); transform: translate(-50%, -50%); animation: drift 9s ease-in-out infinite; }
+.scene span:nth-child(2) { width: 170px; height: 46px; animation-delay: -3s; animation-duration: 12s; opacity: 0.6; }
+.scene span:nth-child(3) { width: 80px; height: 80px; animation-delay: -6s; animation-duration: 15s; opacity: 0.45; }
+@keyframes drift { 0%, 100% { transform: translate(-60%, -50%) scale(1); } 50% { transform: translate(-40%, -56%) scale(1.15); } }
+.story-text { font-size: 1.2rem; line-height: 1.55; }
+.choices { display: grid; gap: 12px; margin-top: 6px; }
+.choice { min-height: 56px; padding: 12px 16px; text-align: left; border: 1.5px solid var(--soot); border-radius: 4px; background: rgba(250, 241, 210, 0.45); font: 400 1.05rem var(--display); }
+.choice:active { background: rgba(255, 220, 140, 0.5); }
+.chosen-line { font-family: var(--display); font-size: 1.1rem; color: var(--soot-soft); }
+.outcome { font-weight: 700; }
+.karma-note { font-style: italic; color: var(--soot-soft); }
+
+.rest-head { display: flex; align-items: center; gap: 12px; }
+.lamp.big { width: 64px; height: 64px; flex: none; }
+.lamp.big .lamp-flame { filter: drop-shadow(0 0 10px rgba(255, 190, 60, 1)); }
+.rest-part { display: grid; gap: 8px; padding-top: 14px; border-top: 1.5px solid rgba(36, 30, 21, 0.3); box-shadow: inset 0 1.2px 0 var(--cut-light); }
+.rest-part h2 { font-size: 1.25rem; }
+.rest-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rest-row .ghost { min-height: 52px; padding: 6px 10px; }
+.rest-row .ghost:disabled { opacity: 0.45; }
+.mantra.small { font-size: 1.05rem; }
+.lore summary { cursor: pointer; font-family: var(--display); font-size: 1.1rem; min-height: 40px; display: flex; align-items: center; }
+.lore p { font-style: italic; font-size: 1.05rem; }
+
+/* living enemies: they breathe, and now and then they blink */
+.foe-figure svg { transform-origin: 50% 60%; }
+.foe .eye { transform-box: fill-box; transform-origin: center; animation: blink 5.5s infinite; }
+.foe:nth-child(2) .eye { animation-delay: -2.1s; }
+.foe .eye + .eye { animation-name: blink; }
+@keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 95%, 97% { transform: scaleY(0.08); } }
+.foe.big .eye { animation-duration: 7s; }
+.tint-saturn .eye, .tint-ketu .eye { animation-duration: 9s; }
+.tint-mercury .eye, .tint-mars .eye { animation-duration: 3.6s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .foe .eye, .scene span { animation: none !important; }
+}
+
+/* the chart in detail */
+.details { width: 100%; margin: 6px 0 4px; border-top: 1.5px solid rgba(36, 30, 21, 0.3); box-shadow: inset 0 1.2px 0 var(--cut-light); }
+.details summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; justify-content: center; font: 400 1.05rem var(--display); }
+.table-wrap { overflow-x: auto; }
+.details table { width: 100%; border-collapse: collapse; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+.details th, .details td { text-align: left; padding: 6px 6px; border-bottom: 1px solid rgba(36, 30, 21, 0.18); white-space: nowrap; vertical-align: top; }
+.details thead th { font-family: var(--display); font-weight: 400; color: var(--soot-soft); }
+.details tbody th { font-weight: 700; }
+.method { font-size: 0.86rem; color: var(--soot-soft); margin-top: 10px; text-align: left; }

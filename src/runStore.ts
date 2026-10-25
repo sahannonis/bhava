@@ -3,7 +3,7 @@ import type { RunState } from './game/run';
 const KEY = 'bhava.run';
 
 export function loadRun(): RunState | null {
-  try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); return v && v.v === 1 && !v.over ? v : null; } catch { return null; }
+  try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!v || v.v !== 1 || v.over) return null; v.karma ??= 0; return v; } catch { return null; }
 }
 export function saveRun(run: RunState): void {
   try { localStorage.setItem(KEY, JSON.stringify(run)); } catch { /* kept for this session only */ }

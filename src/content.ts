@@ -112,3 +112,19 @@ export const HOUSE_OPENING: { rules: string; text: string }[] = [
   { rules: 'gains and friends', text: 'The eleventh house is gain: friends, income, and the hopes that come true.' },
   { rules: 'release', text: 'The twelfth house is release: loss, sleep, far lands, and letting go. Beyond it, the wheel turns.' },
 ];
+
+/* Lore stones at rest places: a line each, for the world Bhava shares with Samsara. Drafts. */
+export const LORE: string[] = [
+  'Before the first house there was only the wheel, turning in the dark, with no one to walk it.',
+  'The planets are not gods here. They are weather, and every soul is a field they cross.',
+  'Some say each house remembers everyone who ever walked through it. The stones say nothing.',
+  'Karma is not a judge. It is the shape your footprints leave in wet ground.',
+  'Ink was the first thing. Colour comes back only to what has been understood.',
+  'The lamp-keepers tend these rests for travellers they will never meet. That is their whole work.',
+  'Rahu swallowed the Sun once and was cut in two for it. Both halves are still hungry.',
+  'Saturn walks slowest of all, and so it sees the most. It is patient because it has to be.',
+  'A soul that clears all twelve houses is not finished. It is only free to choose its next life.',
+  'The Moon changes its face each night so that no one mistakes a mood for the truth.',
+  'Even the Headless One was a pilgrim once. It walked so long it forgot what it was walking for.',
+  'Beyond the twelfth house the river is wide. What you carry decides how deep the boat sits.',
+];

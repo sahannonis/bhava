@@ -29,7 +29,7 @@ export type CardDef = {
 
 const c = (d: CardDef) => d;
 
-export const CARDS: Record<string, CardDef> = {
+const BASE: Record<string, CardDef> = {
   // neutral
   strike: c({ id: 'strike', name: 'Strike', cost: 1, type: 'attack', target: 'enemy', effects: [{ kind: 'damage', amount: 6 }] }),
   guard: c({ id: 'guard', name: 'Guard', cost: 1, type: 'skill', target: 'self', effects: [{ kind: 'block', amount: 5 }] }),
@@ -85,6 +85,36 @@ export const CARDS: Record<string, CardDef> = {
   detach: c({ id: 'detach', name: 'Detach', cost: 1, type: 'skill', target: 'self', planet: 'Ketu', effects: [{ kind: 'cleanse' }, { kind: 'block', amount: 5 }] }),
   release: c({ id: 'release', name: 'Release', cost: 0, type: 'skill', target: 'self', planet: 'Ketu', exhaust: true, effects: [{ kind: 'draw', n: 2 }, { kind: 'breath', n: 1 }] }),
 };
+
+/* An upgraded card is the same id with a '+': bigger numbers, or one less breath if it has none to grow. */
+export function upgradeDef(d: CardDef): CardDef {
+  let grew = false;
+  const effects = d.effects.map((e): Effect => {
+    switch (e.kind) {
+      case 'damage': grew = true; return e.times && e.times > 1 ? { ...e, amount: e.amount + 1 } : e.perTurn || e.perPlayed ? { ...e, amount: e.amount + 2, ...(e.max ? { max: e.max + 4 } : {}) } : { ...e, amount: e.amount + 3 };
+      case 'drain': grew = true; return { ...e, amount: e.amount + 3 };
+      case 'block': grew = true; return { ...e, amount: e.amount + 3 };
+      case 'heal': grew = true; return { ...e, amount: e.amount + 2 };
+      case 'status': if (e.status === 'charmed') return e; grew = true; return { ...e, amount: e.amount + 1 };
+      case 'draw': if (d.cost === 0) { grew = true; return { ...e, n: e.n + 1 }; } return e;
+      default: return e;
+    }
+  });
+  return { ...d, id: `${d.id}+`, name: `${d.name}+`, effects, cost: grew ? d.cost : Math.max(0, d.cost - 1) };
+}
+
+const UPGRADED: Record<string, CardDef> = {};
+/* Every card by id; 'strike+' gives the upgraded Strike. */
+export const CARDS: Record<string, CardDef> = new Proxy(BASE, {
+  get(t, k) {
+    if (typeof k !== 'string') return undefined;
+    if (k in t) return t[k];
+    if (k.endsWith('+') && k.slice(0, -1) in t) return (UPGRADED[k] ??= upgradeDef(t[k.slice(0, -1)]));
+    return undefined;
+  },
+});
+export const isUpgraded = (id: string) => id.endsWith('+');
+export const BASE_IDS = () => Object.keys(BASE);
 
 /* Each class: its signature card, and the two cards of its planet it starts with. */
 export const CLASS_CARDS: Record<string, [string, string, string]> = {
