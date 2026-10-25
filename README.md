@@ -16,7 +16,7 @@ Needs Android Studio (with the Android 16 / API 36 SDK).
 
 ```
 npm run android      # builds the web app and copies it into android/
-npx cap open android # opens Android Studio: Run on your phone, or Build > Generate Signed App Bundle
+npx cap open android # opens Android Studio (or File > Open the android folder yourself)
 ```
 
 The app id is `com.twelfthhouseprotocol.bhava`. It can never change once the app is on Google Play.
@@ -37,6 +37,7 @@ npm run build:preview   # one self-contained page in preview/
 | `src/seed.ts` | A birth becomes a class and twelve houses: sign, element, planets, strength, house lord, and the random seed. |
 | `src/chartSvg.ts` | The chart, drawn North Indian style. |
 | `src/main.ts` | The screens. |
+| `capacitor.config.json` | App id and name for Android (JSON, so it works with any TypeScript or Node version). |
 | `src/store.ts` | Saving on the phone only. |
 | `tests/` | `engine.test.cjs` (a known chart, old Sri Lankan time) and `screens.py` (phone-sized screen checks with Playwright). |
 

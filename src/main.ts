@@ -1,7 +1,11 @@
-import '@fontsource/marcellus/400.css';
-import '@fontsource/alegreya/400.css';
-import '@fontsource/alegreya/400-italic.css';
-import '@fontsource/alegreya/700.css';
+// Latin letters only (with accents for place names); the other scripts would add ~600 kB for nothing
+import '@fontsource/marcellus/latin-400.css';
+import '@fontsource/marcellus/latin-ext-400.css';
+import '@fontsource/alegreya/latin-400.css';
+import '@fontsource/alegreya/latin-ext-400.css';
+import '@fontsource/alegreya/latin-400-italic.css';
+import '@fontsource/alegreya/latin-700.css';
+import '@fontsource/alegreya/latin-ext-700.css';
 import './style.css';
 import { findPlaces, loadPlaces, placeFromCoords, placeLabel, type Place } from './places';
 import { castChart, ordinal, type Birth, type Reading } from './seed';
