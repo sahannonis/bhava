@@ -39,6 +39,7 @@ npm run build:preview   # one self-contained page in preview/
 | `src/content.ts` | Working names and draft rules: the nine planet enemies, the ground each element gives, rest-place gifts by house lord, the twelve daily Moon effects. |
 | `src/today.ts` | Today's Moon, counted from your lagna. |
 | `src/rng.ts` | Seeded randomness from the birth seed and run number. |
+| `src/ambience.ts` | The twinkling gold starlight behind the pages. |
 | `src/main.ts` | The screens. |
 | `capacitor.config.json` | App id and name for Android (JSON, so it works with any TypeScript or Node version). |
 | `src/store.ts` | Saving on the phone only. |
@@ -53,4 +54,4 @@ npm run build:preview   # one self-contained page in preview/
 ## Build log
 
 - **Day 1 (24 Oct 2026):** project shell (Vite, TypeScript, Capacitor 8, Android target API 36), the engine copied in, birth entry with offline place search and map coordinates, the chart and the twelve-house seed on screen, birth kept on the phone.
-- **Day 2 (25 Oct 2026):** the chart is now the run map: ink hatching shows fights, bosses and the final gate, a dotted red line shows where you stand, and tapping a house shows its ground, its enemies or its rest-place gift. Today's Moon modifier, seeded randomness, Latin-only fonts.
+- **Day 2 (25 Oct 2026):** the chart is now the run map: ink hatching shows fights, bosses and the final gate, a dotted red line shows where you stand, and tapping a house shows its ground, its enemies or its rest-place gift. Today's Moon modifier and real Moon phase, seeded randomness, Latin-only fonts. Lamplight and twinkling gold starlight on the leaf, a slowly turning star wheel behind the title, the chart drawn in ink as it opens, planets that rise and glow in their own colours, a lit chosen house and walking red dots where you stand.

@@ -11,7 +11,8 @@ import { findPlaces, loadPlaces, placeFromCoords, placeLabel, type Place } from 
 import { castChart, ordinal, type Birth, type Reading } from './seed';
 import { chartSvg } from './chartSvg';
 import { ENEMIES, GROUND, KIND_NAME, REST_GIFT } from './content';
-import { moonDay } from './today';
+import { moonDay, moonSvg } from './today';
+import { startStarlight } from './ambience';
 import { forgetBirth, loadBirth, saveBirth } from './store';
 
 const app = document.getElementById('app')!;
@@ -24,6 +25,7 @@ function showBirth(prev: Birth | null) {
   app.innerHTML = `
   <main class="leaf birth">
     <header class="title">
+      ${starWheel()}
       <h1>Bhava</h1>
       <p class="sub">The Twelve Houses</p>
     </header>
@@ -168,10 +170,14 @@ function showChart(r: Reading) {
       ${r.timeKnown ? '' : '<p class="note">Without a birth time, your houses are read from the Moon. Add the time if you can find it.</p>'}
     </header>
     <section class="sky" aria-label="Today's sky">
-      <p class="sky-title"><span class="pl-moon">${day.title}</span> today, in ${day.signName}</p>
-      <p>${day.effect}</p>
+      ${moonSvg(day.elong)}
+      <div>
+        <p class="sky-title"><span class="pl-moon">${day.title}</span> today, in ${day.signName}</p>
+        <p>${day.effect}</p>
+        <small>${Math.round(day.lit * 100)}% lit, ${day.elong < 180 ? 'growing' : 'shrinking'}</small>
+      </div>
     </section>
-    <figure class="chart-wrap" id="map">${chartSvg(r, { current, selected })}</figure>
+    <figure class="chart-wrap" id="map">${chartSvg(r, { current, selected, cast: true })}</figure>
     <ul class="legend" aria-label="What the ink means">
       <li>${SWATCH('fight')}Fight</li><li>${SWATCH('boss')}Boss</li><li>${SWATCH('gate')}Final gate</li><li>${SWATCH('rest')}Rest place</li>
       <li><svg class="swatch" viewBox="0 0 18 18" aria-hidden="true"><line class="here-mark" x1="2" y1="9" x2="17" y2="9" /></svg>You are here</li>
@@ -193,6 +199,7 @@ function showChart(r: Reading) {
     selected = n;
     map.innerHTML = chartSvg(r, { current, selected });
     panel.innerHTML = housePanel(r, n, current);
+    panel.classList.remove('turn'); void panel.offsetWidth; panel.classList.add('turn');
     const box = panel.getBoundingClientRect();
     if (box.top > window.innerHeight - 120) panel.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
     (map.querySelector(`[data-house="${n}"]`) as SVGGElement | null)?.focus({ preventScroll: true });
@@ -214,5 +221,24 @@ function showChart(r: Reading) {
   window.scrollTo(0, 0);
 }
 
+/* A ring of 12 houses and 27 lunar mansions, turning very slowly behind the title. */
+function starWheel(): string {
+  const ticks = Array.from({ length: 12 }, (_, i) => {
+    const a = (i * Math.PI) / 6, x1 = Math.sin(a) * 118, y1 = -Math.cos(a) * 118, x2 = Math.sin(a) * 132, y2 = -Math.cos(a) * 132;
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" />`;
+  }).join('');
+  const dots = Array.from({ length: 27 }, (_, i) => {
+    const a = (i * 2 * Math.PI) / 27 + 0.06;
+    return `<circle cx="${(Math.sin(a) * 146).toFixed(1)}" cy="${(-Math.cos(a) * 146).toFixed(1)}" r="${i % 9 === 0 ? 2.6 : 1.6}" />`;
+  }).join('');
+  return `<svg class="wheel" viewBox="-160 -160 320 320" aria-hidden="true">
+    <g class="wheel-turn">
+      <circle r="118" /><circle r="132" /><circle class="wheel-thin" r="152" />
+      ${ticks}<g class="wheel-dots">${dots}</g>
+    </g>
+  </svg>`;
+}
+
 /* ---------- start ---------- */
+startStarlight();
 loadBirth().then(b => (b ? showChart(castChart(b)) : showBirth(null)));

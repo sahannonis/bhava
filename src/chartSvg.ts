@@ -29,12 +29,18 @@ const LINES = 'M2 2H398V398H2Z M2 2L398 398 M398 2L2 398 M200 2L398 200L200 398L
 const DEFS = `<defs>
   <pattern id="hatch-fight" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="9" /></pattern>
   <pattern id="hatch-boss" width="4.5" height="4.5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4.5" /></pattern>
+  <filter id="planet-glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="5.5" /></filter>
+  <radialGradient id="lamp-on-house"><stop offset="0" stop-color="#fff0c2" stop-opacity="0.75" /><stop offset="1" stop-color="#ffd98a" stop-opacity="0.18" /></radialGradient>
   <pattern id="hatch-gate" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" /><line x1="0" y1="0" x2="7" y2="0" /></pattern>
 </defs>`;
 
-export type MapState = { current?: number; selected?: number };
+export type MapState = { current?: number; selected?: number; cast?: boolean };
+
+/* Each planet breathes at its own pace, quick for the Moon and slow for Saturn, as they move in the sky. */
+const BREATH: Record<string, number> = { Moon: 3.2, Mercury: 4.1, Venus: 4.8, Sun: 5.6, Mars: 6.4, Rahu: 7.6, Ketu: 7.6, Jupiter: 9, Saturn: 11 };
 
 export function chartSvg(r: Reading, state: MapState = {}): string {
+  let rise = 0; // planets appear one by one, in run order
   const houses = r.houses.map(h => {
     const [sx, sy] = SIGN_AT[h.n];
     const [px, py, per, flow] = PLANETS_AT[h.n];
@@ -43,21 +49,25 @@ export function chartSvg(r: Reading, state: MapState = {}): string {
     const names = h.planets.map((p, i) => {
       const row = Math.floor(i / per), inRow = Math.min(per, h.planets.length - row * per), col = i % per;
       const x = px + (col - (inRow - 1) / 2) * 31, y = startY + row * 21;
-      return `<text class="pl pl-${p.name.toLowerCase()}" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${ABBR[p.name]}</text>`;
+      const id = p.name.toLowerCase(), at = `x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central"`;
+      return `<g class="pl-g" style="--rise:${(1.5 + 0.13 * rise++).toFixed(2)}s;--breath:${BREATH[p.name]}s;--lag:${(-((x * 7 + y * 3) % 50) / 10).toFixed(1)}s">
+        <text class="pl-glow glow-${id}" ${at} filter="url(#planet-glow)">${ABBR[p.name]}</text>
+        <text class="pl pl-${id}" ${at}>${ABBR[p.name]}</text>
+      </g>`;
     }).join('');
     const lagna = h.n === 1 ? `<text class="lagna-word" x="200" y="160" text-anchor="middle">lagna</text>` : '';
     const hatch = h.kind === 'rest' ? '' : `<polygon class="hatch" points="${SHAPES[h.n]}" fill="url(#hatch-${h.kind})" />`;
     const cls = ['house', `kind-${h.kind}`, state.current === h.n ? 'is-current' : '', state.selected === h.n ? 'is-selected' : ''].filter(Boolean).join(' ');
     const what = h.kind === 'rest' ? 'rest place' : h.kind === 'gate' ? 'final gate' : h.kind;
     return `<g class="${cls}" data-house="${h.n}" role="button" tabindex="0" aria-pressed="${state.selected === h.n}" aria-label="${h.n}${['st', 'nd', 'rd'][h.n - 1] || 'th'} house, ${h.signName}, ${what}${h.planets.length ? `: ${h.planets.map(p => p.name).join(', ')}` : ''}">
-      ${hatch}<polygon class="hit" points="${SHAPES[h.n]}" />
+      ${hatch}<polygon class="hit" points="${SHAPES[h.n]}" />${state.selected === h.n ? `<polygon class="lit" points="${SHAPES[h.n]}" fill="url(#lamp-on-house)" />` : ''}
       <text class="sign-no" x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central">${h.sign + 1}</text>${lagna}${names}
     </g>`;
   }).join('');
   const sel = state.selected ? `<polygon class="selected-ring" points="${SHAPES[state.selected]}" />` : '';
   // where you stand: a dotted line of red ink around the house
   const here = state.current ? `<polygon class="current-ring" points="${SHAPES[state.current]}" />` : '';
-  return `<svg class="chart" viewBox="-4 -4 408 408" role="group" aria-label="Your birth chart, your twelve houses">
+  return `<svg class="chart${state.cast ? ' cast' : ''}" viewBox="-4 -4 408 408" role="group" aria-label="Your birth chart, your twelve houses">
     ${DEFS}
     ${houses}
     <path class="cut-light" d="${LINES}" transform="translate(0 1.4)" />

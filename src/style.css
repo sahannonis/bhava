@@ -18,6 +18,19 @@
   --rahu: #45385a;
   --ketu: #5e4029;
 
+  /* light, for glows: the colour each planet gives off */
+  --glow-sun: #ffc93c;
+  --glow-moon: #dbe8ff;
+  --glow-mars: #ff7a4d;
+  --glow-mercury: #7fe0a0;
+  --glow-jupiter: #ffb24a;
+  --glow-venus: #ff9fd2;
+  --glow-saturn: #93a8ff;
+  --glow-rahu: #bba0ff;
+  --glow-ketu: #ecb47e;
+  --lamp: rgba(255, 226, 160, 0.5);
+  --gilt: #9a6d17;
+
   --display: 'Marcellus', 'Times New Roman', serif;
   --text: 'Alegreya', Georgia, serif;
   --gutter: 20px;
@@ -42,6 +55,8 @@ body {
 }
 
 .leaf {
+  position: relative;
+  z-index: 1;
   max-width: 560px;
   margin: 0 auto;
   padding: calc(env(safe-area-inset-top) + 28px) var(--gutter) calc(env(safe-area-inset-bottom) + 40px);
@@ -213,6 +228,101 @@ pattern line { stroke: var(--soot); stroke-width: 1.1; }
 .pl-ketu { fill: var(--ketu); color: var(--ketu); }
 .actions { display: grid; justify-items: center; gap: 10px; margin-top: 36px; }
 
+
+
+/* ---------- light and motion ---------- */
+/* the page is read by lamplight: a warm pool of light that flickers a little */
+body::after {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(60% 45% at 50% 24%, var(--lamp) 0%, rgba(255, 214, 140, 0.16) 45%, transparent 75%);
+  animation: lamp 7s ease-in-out infinite alternate;
+}
+@keyframes lamp {
+  0% { opacity: 0.85; transform: scale(1); }
+  18% { opacity: 1; }
+  31% { opacity: 0.9; }
+  47% { opacity: 0.98; transform: scale(1.02); }
+  63% { opacity: 0.86; }
+  80% { opacity: 1; }
+  100% { opacity: 0.92; transform: scale(1.01); }
+}
+#starlight { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+/* title: gilt letters over a slowly turning ring of houses and lunar mansions */
+.title { position: relative; }
+.title h1 { position: relative; text-shadow: 0 1.2px 0 var(--cut-light), 0 0 26px rgba(255, 210, 120, 0.7); }
+.title .sub { position: relative; }
+.wheel {
+  position: absolute;
+  left: 50%;
+  top: calc(6vh + 2.4rem);
+  width: min(78vw, 330px);
+  height: auto;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.wheel circle, .wheel line { fill: none; stroke: var(--soot); stroke-opacity: 0.2; stroke-width: 1.2; }
+.wheel .wheel-thin { stroke-opacity: 0.12; stroke-dasharray: 1 5; }
+.wheel .wheel-dots circle { fill: var(--gilt); fill-opacity: 0.75; stroke: none; }
+.wheel-turn { transform-box: fill-box; transform-origin: center; animation: turn 240s linear infinite; }
+@keyframes turn { to { transform: rotate(360deg); } }
+
+/* planets glow in their own colour and breathe at their own pace */
+.pl-glow { stroke-width: 5px; stroke-linejoin: round; opacity: 0.5; pointer-events: none; animation: breathe var(--breath) ease-in-out var(--lag) infinite; }
+.glow-sun { fill: var(--glow-sun); stroke: var(--glow-sun); }
+.glow-moon { fill: var(--glow-moon); stroke: var(--glow-moon); }
+.glow-mars { fill: var(--glow-mars); stroke: var(--glow-mars); }
+.glow-mercury { fill: var(--glow-mercury); stroke: var(--glow-mercury); }
+.glow-jupiter { fill: var(--glow-jupiter); stroke: var(--glow-jupiter); }
+.glow-venus { fill: var(--glow-venus); stroke: var(--glow-venus); }
+.glow-saturn { fill: var(--glow-saturn); stroke: var(--glow-saturn); }
+.glow-rahu { fill: var(--glow-rahu); stroke: var(--glow-rahu); }
+.glow-ketu { fill: var(--glow-ketu); stroke: var(--glow-ketu); }
+@keyframes breathe { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
+.pl-g { transform-box: fill-box; transform-origin: center; }
+
+/* the chosen house is lit, as if a lamp were held over it */
+.chart .lit { pointer-events: none; mix-blend-mode: screen; animation: lamp-in 0.45s ease-out, held 5s ease-in-out 0.45s infinite alternate; }
+@keyframes lamp-in { from { opacity: 0; } }
+@keyframes held { from { opacity: 1; } to { opacity: 0.72; } }
+
+/* where you stand: the red dots walk around the house */
+.chart .current-ring { animation: march 2.6s linear infinite; }
+@keyframes march { to { stroke-dashoffset: -14.2; } }
+
+/* today's Moon */
+.sky { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+.sky small { margin-top: 2px; }
+.moon { display: block; overflow: visible; }
+.moon-halo { fill: var(--glow-moon); opacity: 0.8; animation: breathe 6s ease-in-out infinite; }
+.moon-dark { fill: rgba(36, 30, 21, 0.2); }
+.moon-lit { fill: #fdf6e0; }
+.moon-rim { fill: none; stroke: rgba(36, 30, 21, 0.55); stroke-width: 1.2; }
+
+.panel.turn { animation: turn-page 0.32s ease-out; }
+@keyframes turn-page { from { opacity: 0.25; transform: translateY(5px); } }
+@keyframes fade-in { to { opacity: 1; } }
+
+/* casting: when the map opens, the lines are cut into the leaf, then the planets rise in run order */
+@media (prefers-reduced-motion: no-preference) {
+  .chart.cast .cut { stroke-dasharray: 3830 3830; stroke-dashoffset: 3830; /* the grid's full length */ animation: ink-draw 1.5s cubic-bezier(0.55, 0.05, 0.3, 1) 0.15s forwards; }
+  @keyframes ink-draw { to { stroke-dashoffset: 0; } }
+  .chart.cast .cut-light { opacity: 0; animation: fade-in 0.6s ease 1.4s forwards; }
+  .chart.cast .hatch { opacity: 0; animation: fade-in 0.9s ease 1.2s forwards; }
+  .chart.cast .sign-no, .chart.cast .lagna-word { opacity: 0; animation: fade-in 0.6s ease 1.25s forwards; }
+  .chart.cast .pl-g { opacity: 0; transform: scale(0.5); animation: rise 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.35) var(--rise) forwards; }
+  @keyframes rise { to { opacity: 1; transform: scale(1); } }
+  .chart.cast .pl-glow { animation: breathe var(--breath) ease-in-out calc(var(--rise) + 1.1s) infinite, bloom 1.1s ease-out var(--rise) backwards; }
+  @keyframes bloom { 0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0.3; } }
+  .chart.cast .selected-ring { opacity: 0; animation: fade-in 0.5s ease 2.2s forwards; }
+  .chart.cast .lit { opacity: 0; animation: fade-in 0.8s ease 2.2s forwards, held 5s ease-in-out 3s infinite alternate; }
+  .chart.cast .current-ring { opacity: 0; animation: fade-in 0.6s ease 2.4s forwards, march 2.6s linear infinite; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
 }
