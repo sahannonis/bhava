@@ -1,6 +1,7 @@
-/* The D1 chart drawn North Indian style: houses fixed, house 1 at the top, counting
-   counter-clockwise. Lines are drawn twice (a pale line under a soot line) so they read
-   as cut into the leaf. Each house is a tappable shape (data-house) for the run map later. */
+/* The D1 chart drawn North Indian style, and also the run map: houses fixed, house 1 at the top,
+   counting counter-clockwise. Lines are drawn twice (a pale line under a soot line) so they read as
+   cut into the leaf. What waits in each house is shown by ink hatching: light for a fight, dense for
+   a boss, crossed for the final gate, none for a rest place. Each house is a tappable shape (data-house). */
 import type { Reading } from './seed';
 
 const ABBR: Record<string, string> = { Sun: 'Su', Moon: 'Mo', Mars: 'Ma', Mercury: 'Me', Jupiter: 'Ju', Venus: 'Ve', Saturn: 'Sa', Rahu: 'Ra', Ketu: 'Ke' };
@@ -25,7 +26,15 @@ const PLANETS_AT: Record<number, [number, number, number, Flow]> = { // x, y, pe
 
 const LINES = 'M2 2H398V398H2Z M2 2L398 398 M398 2L2 398 M200 2L398 200L200 398L2 200Z';
 
-export function chartSvg(r: Reading): string {
+const DEFS = `<defs>
+  <pattern id="hatch-fight" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="9" /></pattern>
+  <pattern id="hatch-boss" width="4.5" height="4.5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4.5" /></pattern>
+  <pattern id="hatch-gate" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" /><line x1="0" y1="0" x2="7" y2="0" /></pattern>
+</defs>`;
+
+export type MapState = { current?: number; selected?: number };
+
+export function chartSvg(r: Reading, state: MapState = {}): string {
   const houses = r.houses.map(h => {
     const [sx, sy] = SIGN_AT[h.n];
     const [px, py, per, flow] = PLANETS_AT[h.n];
@@ -37,14 +46,22 @@ export function chartSvg(r: Reading): string {
       return `<text class="pl pl-${p.name.toLowerCase()}" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${ABBR[p.name]}</text>`;
     }).join('');
     const lagna = h.n === 1 ? `<text class="lagna-word" x="200" y="160" text-anchor="middle">lagna</text>` : '';
-    return `<g class="house" data-house="${h.n}" role="button" tabindex="0" aria-label="${h.n}${['st','nd','rd'][h.n - 1] || 'th'} house, ${h.signName}, ${h.planets.length ? h.planets.map(p => p.name).join(', ') : 'empty'}">
-      <polygon points="${SHAPES[h.n]}" />
+    const hatch = h.kind === 'rest' ? '' : `<polygon class="hatch" points="${SHAPES[h.n]}" fill="url(#hatch-${h.kind})" />`;
+    const cls = ['house', `kind-${h.kind}`, state.current === h.n ? 'is-current' : '', state.selected === h.n ? 'is-selected' : ''].filter(Boolean).join(' ');
+    const what = h.kind === 'rest' ? 'rest place' : h.kind === 'gate' ? 'final gate' : h.kind;
+    return `<g class="${cls}" data-house="${h.n}" role="button" tabindex="0" aria-pressed="${state.selected === h.n}" aria-label="${h.n}${['st', 'nd', 'rd'][h.n - 1] || 'th'} house, ${h.signName}, ${what}${h.planets.length ? `: ${h.planets.map(p => p.name).join(', ')}` : ''}">
+      ${hatch}<polygon class="hit" points="${SHAPES[h.n]}" />
       <text class="sign-no" x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central">${h.sign + 1}</text>${lagna}${names}
     </g>`;
   }).join('');
-  return `<svg class="chart" viewBox="-4 -4 408 408" role="img" aria-label="Your birth chart">
+  const sel = state.selected ? `<polygon class="selected-ring" points="${SHAPES[state.selected]}" />` : '';
+  // where you stand: a dotted line of red ink around the house
+  const here = state.current ? `<polygon class="current-ring" points="${SHAPES[state.current]}" />` : '';
+  return `<svg class="chart" viewBox="-4 -4 408 408" role="group" aria-label="Your birth chart, your twelve houses">
+    ${DEFS}
+    ${houses}
     <path class="cut-light" d="${LINES}" transform="translate(0 1.4)" />
     <path class="cut" d="${LINES}" />
-    ${houses}
+    ${sel}${here}
   </svg>`;
 }

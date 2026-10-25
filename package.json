@@ -6,7 +6,7 @@
     "dev": "vite --host",
     "build": "tsc && vite build",
     "build:preview": "vite build --mode preview",
-    "test": "node --test tests/engine.test.cjs",
+    "test": "node --test tests/engine.test.cjs && node --experimental-strip-types --no-warnings --test tests/rng.test.ts",
     "android": "npm run build && npx cap sync android"
   },
   "author": "",

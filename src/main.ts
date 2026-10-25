@@ -10,6 +10,8 @@ import './style.css';
 import { findPlaces, loadPlaces, placeFromCoords, placeLabel, type Place } from './places';
 import { castChart, ordinal, type Birth, type Reading } from './seed';
 import { chartSvg } from './chartSvg';
+import { ENEMIES, GROUND, KIND_NAME, REST_GIFT } from './content';
+import { moonDay } from './today';
 import { forgetBirth, loadBirth, saveBirth } from './store';
 
 const app = document.getElementById('app')!;
@@ -112,22 +114,40 @@ function showBirth(prev: Birth | null) {
   });
 }
 
-/* ---------- the chart ---------- */
-const KIND: Record<string, string> = { fight: 'Fight', boss: 'Boss', rest: 'Rest place', gate: 'Final gate' };
-const STRENGTH: Record<string, string> = { strong: 'strong', normal: '', weak: 'weak' };
+/* ---------- the run map ---------- */
+const DIGNITY: Record<string, string> = { exalted: 'exalted', 'own sign': 'in its own sign', debilitated: 'debilitated' };
 
-function houseRow(r: Reading, n: number): string {
-  const h = r.houses[n - 1];
-  const planets = h.planets.length
-    ? h.planets.map(p => `<span class="pl-${p.name.toLowerCase()}">${p.name}</span>${p.dignity ? `, ${p.dignity}` : ''}${STRENGTH[p.strength] ? ` (${STRENGTH[p.strength]})` : ''}${p.retro ? ', retrograde' : ''}`).join('<br>')
-    : 'No planets';
-  return `<li id="h-${n}" class="house-row kind-${h.kind}">
-    <div class="h-head"><h3>${ordinal(n)} house</h3><span class="kind">${KIND[h.kind]}</span></div>
-    <p class="h-sign">${h.signName}, ${h.element}</p>
-    <p class="h-planets">${planets}</p>
-    <p class="h-lord">Its lord, ${h.lord}, sits in your ${ordinal(h.lordHouse)} house.</p>
-  </li>`;
+function foeLine(p: { name: string; dignity: string; strength: string; retro: boolean }): string {
+  const bits = [p.name, DIGNITY[p.dignity], p.retro ? 'retrograde' : ''].filter(Boolean).join(', ');
+  const power = p.strength === 'strong' ? 'Strong' : p.strength === 'weak' ? 'Weak' : '';
+  return `<li><span class="foe pl-${p.name.toLowerCase()}">${ENEMIES[p.name].name}</span>
+    <span class="foe-what">${bits}${power ? `. <b>${power}</b>` : ''}</span></li>`;
 }
+
+function housePanel(r: Reading, n: number, current: number): string {
+  const h = r.houses[n - 1], g = GROUND[h.element];
+  let body = '';
+  if (h.planets.length) {
+    const intro = h.kind === 'gate' ? 'The final gate is held by' : h.kind === 'boss' ? 'Its planets join into one boss:' : 'You face';
+    body = `<p>${intro}</p><ul class="foes">${h.planets.map(foeLine).join('')}</ul>`;
+  } else if (h.kind === 'gate') {
+    body = '<p>Every run ends here. Your 12th house is empty, so the gate is held by a shade of your own lagna lord.</p>';
+  } else {
+    body = `<p>A rest place. Rest, upgrade a card, or buy one with prana.</p>
+      <p class="gift">Its lord, ${h.lord}, sits in your ${ordinal(h.lordHouse)} house. <b>${REST_GIFT[h.lord]}</b></p>`;
+  }
+  const where = n === current ? 'You stand at its door.' : n < current ? 'Cleared.' : `Reached after the ${ordinal(n - 1)} house.`;
+  return `<div class="panel-head">
+      <h2>${ordinal(n)} house, ${h.signName}</h2>
+      <span class="kind kind-${h.kind}">${KIND_NAME[h.kind]}</span>
+    </div>
+    <p class="ground"><b>${g.name}.</b> ${g.rule}</p>
+    ${body}
+    <p class="where">${where} Clear it to read what this house says about you.</p>`;
+}
+
+const SWATCH = (kind: string) => `<svg class="swatch" viewBox="0 0 18 18" aria-hidden="true">
+  ${kind === 'rest' ? '' : `<rect width="18" height="18" fill="url(#hatch-${kind})" />`}<rect class="sw-edge" x="0.75" y="0.75" width="16.5" height="16.5" /></svg>`;
 
 function showChart(r: Reading) {
   const local = new Intl.DateTimeFormat('en-GB', {
@@ -135,37 +155,59 @@ function showChart(r: Reading) {
     ...(r.timeKnown ? { hour: '2-digit', minute: '2-digit' } : {}),
   }).format(new Date(r.utc));
   const lagnaName = r.houses[0].signName;
+  const day = moonDay(r);
+  const current = 1;
+  let selected = current;
 
   app.innerHTML = `
-  <main class="leaf chart-screen">
+  <main class="leaf map-screen">
     <header class="class-head">
       <p class="wordmark">Bhava</p>
       <h1>${r.cls.name}</h1>
       <p class="lead">${r.timeKnown ? 'Your lagna is' : 'Read from your Moon in'} ${lagnaName}, ruled by ${r.cls.ruler}. ${r.cls.style}</p>
       ${r.timeKnown ? '' : '<p class="note">Without a birth time, your houses are read from the Moon. Add the time if you can find it.</p>'}
     </header>
-    <figure class="chart-wrap">${chartSvg(r)}
-      <figcaption>Born ${esc(local)}${r.timeKnown ? '' : ' (time unknown)'}, ${esc(placeLabel(r.birth.place))}, ${r.offset}</figcaption>
-    </figure>
-    <section class="houses" aria-label="Your twelve houses">
-      <h2>Your twelve houses</h2>
-      <p class="hint">Tap a house on the chart to find it here.</p>
-      <ol>${r.houses.map(h => houseRow(r, h.n)).join('')}</ol>
+    <section class="sky" aria-label="Today's sky">
+      <p class="sky-title"><span class="pl-moon">${day.title}</span> today, in ${day.signName}</p>
+      <p>${day.effect}</p>
     </section>
+    <figure class="chart-wrap" id="map">${chartSvg(r, { current, selected })}</figure>
+    <ul class="legend" aria-label="What the ink means">
+      <li>${SWATCH('fight')}Fight</li><li>${SWATCH('boss')}Boss</li><li>${SWATCH('gate')}Final gate</li><li>${SWATCH('rest')}Rest place</li>
+      <li><svg class="swatch" viewBox="0 0 18 18" aria-hidden="true"><line class="here-mark" x1="2" y1="9" x2="17" y2="9" /></svg>You are here</li>
+    </ul>
+    <section class="panel" id="panel" aria-live="polite">${housePanel(r, selected, current)}</section>
+    <div class="enter">
+      <button class="primary" id="enter" disabled>Enter the ${ordinal(current)} house</button>
+      <small>Fights open in the next build.</small>
+    </div>
     <footer class="actions">
+      <p class="born">Born ${esc(local)}${r.timeKnown ? '' : ' (time unknown)'}, ${esc(placeLabel(r.birth.place))}, ${r.offset}</p>
       <button class="ghost" id="edit">Change my birth</button>
       <button class="link" id="forget">Forget my birth on this phone</button>
     </footer>
   </main>`;
 
-  const jump = (n: number) => {
-    const row = document.getElementById(`h-${n}`)!;
-    row.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
-    row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+  const map = document.getElementById('map')!, panel = document.getElementById('panel')!;
+  const select = (n: number) => {
+    selected = n;
+    map.innerHTML = chartSvg(r, { current, selected });
+    panel.innerHTML = housePanel(r, n, current);
+    const box = panel.getBoundingClientRect();
+    if (box.top > window.innerHeight - 120) panel.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
+    (map.querySelector(`[data-house="${n}"]`) as SVGGElement | null)?.focus({ preventScroll: true });
   };
-  app.querySelectorAll<SVGGElement>('.house').forEach(g => {
-    g.addEventListener('click', () => jump(+g.dataset.house!));
-    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jump(+g.dataset.house!); } });
+  map.addEventListener('click', e => {
+    const g = (e.target as Element).closest('[data-house]') as SVGGElement | null;
+    if (g) select(+g.dataset.house!);
+  });
+  map.addEventListener('keydown', e => {
+    const g = (e.target as Element).closest('[data-house]') as SVGGElement | null;
+    if (!g) return;
+    const n = +g.dataset.house!;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(n); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); select((n % 12) + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); select(((n + 10) % 12) + 1); }
   });
   document.getElementById('edit')!.addEventListener('click', () => showBirth(r.birth));
   document.getElementById('forget')!.addEventListener('click', async () => { await forgetBirth(); showBirth(null); });

@@ -138,17 +138,69 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .class-head h1 { font-size: clamp(2.4rem, 11vw, 3.2rem); line-height: 1.05; margin: 10px 0 12px; }
 .note { margin-top: 10px; font-style: italic; color: var(--soot-soft); }
 
-.chart-wrap { margin: 26px 0 0; }
-.chart { display: block; width: 100%; height: auto; overflow: visible; }
-.chart .cut { fill: none; stroke: var(--soot); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
-.chart .cut-light { fill: none; stroke: var(--cut-light); stroke-width: 2.4; }
-.chart .house polygon { fill: transparent; transition: fill 160ms ease; }
-.chart .house:active polygon, .chart .house:focus-visible polygon { fill: rgba(36, 30, 21, 0.08); }
+.chart-wrap { margin: 22px 0 0; }
+.chart { display: block; width: 100%; height: auto; overflow: visible; touch-action: manipulation; }
+.chart .cut { fill: none; stroke: var(--soot); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; pointer-events: none; }
+.chart .cut-light { fill: none; stroke: var(--cut-light); stroke-width: 2.4; pointer-events: none; }
+.chart .hit { fill: transparent; transition: fill 160ms ease; }
+.chart .hatch { pointer-events: none; }
 .chart .house { cursor: pointer; outline: none; }
-.chart .sign-no { font: 400 14px var(--display); fill: var(--soot-soft); }
-.chart .lagna-word { font: italic 400 12px var(--text); fill: var(--soot-soft); letter-spacing: 0.04em; }
-.chart .pl { font: 700 16px var(--text); letter-spacing: 0.02em; }
-figcaption { margin-top: 14px; font-size: 0.92rem; color: var(--soot-soft); text-align: center; }
+.chart .house:active .hit, .chart .house:focus-visible .hit { fill: rgba(36, 30, 21, 0.08); }
+.chart .selected-ring { fill: none; stroke: var(--soot); stroke-width: 5; stroke-linejoin: round; pointer-events: none; }
+.chart .sign-no { font: 400 14px var(--display); fill: var(--soot-soft); pointer-events: none; }
+.chart .current-ring { fill: none; stroke: var(--mars); stroke-width: 3.2; stroke-dasharray: 0.1 7; stroke-linecap: round; pointer-events: none; }
+.chart .lagna-word { font: italic 400 12px var(--text); fill: var(--soot-soft); letter-spacing: 0.04em; pointer-events: none; }
+/* planet letters sit on a halo of bare leaf so the hatching never runs through them */
+.chart .pl { font: 700 16px var(--text); letter-spacing: 0.02em; paint-order: stroke; stroke: var(--leaf); stroke-width: 5px; stroke-linejoin: round; pointer-events: none; }
+pattern line { stroke: var(--soot); stroke-width: 1.1; }
+#hatch-fight line { stroke-opacity: 0.28; }
+#hatch-boss line { stroke-opacity: 0.34; }
+#hatch-gate line { stroke-opacity: 0.3; }
+
+.legend .here-mark { stroke: var(--mars); stroke-width: 3.2; stroke-dasharray: 0.1 6; stroke-linecap: round; }
+.legend { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin: 14px 0 0; padding: 0; font-size: 0.92rem; color: var(--soot-soft); }
+.legend li { display: inline-flex; align-items: center; gap: 7px; }
+.swatch { width: 18px; height: 18px; }
+.swatch .sw-edge { fill: none; stroke: var(--soot); stroke-width: 1.5; }
+
+.sky {
+  margin-top: 22px;
+  padding: 12px 0 13px;
+  border-block: 1.5px solid rgba(36, 30, 21, 0.45);
+  box-shadow: inset 0 1.2px 0 var(--cut-light), 0 1.2px 0 var(--cut-light);
+}
+.sky-title { font-family: var(--display); font-size: 1.08rem; }
+.sky-title span { font-weight: 400; }
+
+.panel {
+  margin-top: 26px;
+  padding: 18px 18px 20px;
+  background: rgba(250, 241, 210, 0.38);
+  border: 1.5px solid var(--soot);
+  border-radius: 3px;
+  box-shadow: 0 1.2px 0 var(--cut-light);
+  display: grid;
+  gap: 10px;
+  scroll-margin: 24px;
+}
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.panel h2 { font-size: 1.45rem; line-height: 1.2; }
+.kind { font-family: var(--display); font-size: 0.98rem; color: var(--soot-soft); }
+.kind-boss, .kind-gate { color: var(--soot); }
+.ground { color: var(--soot-soft); }
+.ground b { color: var(--soot); font-weight: 700; }
+.foes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.foes li { display: grid; gap: 0; }
+.foe { font-family: var(--display); font-size: 1.12rem; }
+.foe-what { font-size: 0.95rem; color: var(--soot-soft); }
+.foe-what b { color: var(--soot); }
+.gift b { font-weight: 700; }
+.where { font-size: 0.92rem; color: var(--soot-soft); font-style: italic; }
+
+.enter { display: grid; gap: 4px; margin-top: 22px; text-align: center; }
+.enter .primary { margin-top: 0; }
+.primary:disabled { opacity: 0.55; cursor: default; }
+.born { font-size: 0.92rem; color: var(--soot-soft); text-align: center; max-width: 30em; }
 
 .pl-sun { fill: var(--sun); color: var(--sun); }
 .pl-moon { fill: var(--moon); color: var(--moon); }
@@ -159,28 +211,6 @@ figcaption { margin-top: 14px; font-size: 0.92rem; color: var(--soot-soft); text
 .pl-saturn { fill: var(--saturn); color: var(--saturn); }
 .pl-rahu { fill: var(--rahu); color: var(--rahu); }
 .pl-ketu { fill: var(--ketu); color: var(--ketu); }
-.h-planets span { font-weight: 700; }
-
-.houses { margin-top: 40px; }
-.houses h2 { font-size: 1.5rem; }
-.hint { color: var(--soot-soft); font-size: 0.92rem; margin-top: 4px; }
-.houses ol { list-style: none; margin: 18px 0 0; padding: 0; }
-.house-row {
-  padding: 16px 0 18px;
-  border-top: 1.5px solid rgba(36, 30, 21, 0.35);
-  box-shadow: inset 0 1.2px 0 var(--cut-light);
-  scroll-margin: 80px;
-}
-.house-row.flash { animation: flash 1.2s ease-out; }
-@keyframes flash { from { background: rgba(36, 30, 21, 0.12); } to { background: transparent; } }
-.h-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.h-head h3 { font-size: 1.2rem; }
-.kind { font-family: var(--display); font-size: 0.95rem; color: var(--soot-soft); }
-.kind-boss .kind, .kind-gate .kind { color: var(--soot); }
-.h-sign { color: var(--soot-soft); }
-.h-planets { margin-top: 4px; }
-.h-lord { margin-top: 6px; font-size: 0.92rem; color: var(--soot-soft); }
-
 .actions { display: grid; justify-items: center; gap: 10px; margin-top: 36px; }
 
 @media (prefers-reduced-motion: reduce) {
