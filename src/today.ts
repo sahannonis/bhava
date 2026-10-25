@@ -1,22 +1,61 @@
-/* Today's sky: where the real Moon is today, counted from the player's lagna.
-   Read at local noon so the effect holds for the whole day. */
+/* Today's sky: where the real planets are now, counted from the birth Moon (gochara).
+   The daily effect is read at local noon so it holds for the whole day. */
 import { E } from './engine';
-import { MOON_DAY } from './content';
-import type { Reading } from './seed';
+import { GOOD_FROM_MOON, MOON_DAY, PRESS } from './content';
+import { ordinal, type Reading } from './seed';
 
-export type MoonDay = {
-  house: number; signName: string; dayKey: string; title: string; effect: string;
-  elong: number; // Moon's distance from the Sun in degrees: 0 new, 180 full
-  lit: number;   // share of the Moon's face that is lit, 0 to 1
+export type Transit = {
+  name: string; sign: number; signName: string; retro: boolean;
+  house: number;     // the house of your chart it is crossing (counted from the lagna, as drawn)
+  fromMoon: number;  // counted from your birth Moon, the way gochara is read
+  good: boolean;
 };
 
-export function moonDay(r: Reading, now = new Date()): MoonDay {
+export type Sky = {
+  dayKey: string;
+  fromMoon: number; signName: string; title: string; effect: string; // today's Moon and its game effect
+  elong: number; lit: number;          // the Moon's phase
+  transits: Transit[];
+  chandrashtama: boolean;              // Moon 8th from the birth Moon
+  sadeSati: 'rising' | 'peak' | 'setting' | null; // Saturn 12th, 1st or 2nd from it
+  pressing: string;                    // the planet whose remedy fits today
+};
+
+const signOf = (r: Reading, n: number) => E.SIGNS[n].en;
+
+export function todaySky(r: Reading, now = new Date()): Sky {
   const noon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
-  const sky = E.chart(noon.getTime(), 0, 0), moon = sky.by.Moon;
-  const house = ((moon.sign - r.lagnaSign + 12) % 12) + 1;
+  const sky = E.chart(noon.getTime(), 0, 0) as ReturnType<typeof E.chart> & { elong: number };
+  const birthMoon = r.chart.by.Moon.sign;
+  const from = (sign: number, base: number) => ((sign - base + 12) % 12) + 1;
+
+  const transits: Transit[] = sky.planets.map(p => {
+    const fromMoon = from(p.sign, birthMoon);
+    return {
+      name: p.name, sign: p.sign, signName: signOf(r, p.sign), retro: p.retro && p.name !== 'Rahu' && p.name !== 'Ketu',
+      house: from(p.sign, r.lagnaSign), fromMoon, good: GOOD_FROM_MOON[p.name].includes(fromMoon),
+    };
+  });
+  const moon = transits.find(t => t.name === 'Moon')!;
+  const saturn = transits.find(t => t.name === 'Saturn')!;
+  const hard = transits.filter(t => !t.good).sort((a, b) => PRESS[b.name] - PRESS[a.name]);
+  const chandrashtama = moon.fromMoon === 8;
+
   const dayKey = `${noon.getFullYear()}-${String(noon.getMonth() + 1).padStart(2, '0')}-${String(noon.getDate()).padStart(2, '0')}`;
-  const elong = (sky as unknown as { elong: number }).elong;
-  return { house, signName: E.SIGNS[moon.sign].en, dayKey, ...MOON_DAY[house - 1], elong, lit: (1 - Math.cos((elong * Math.PI) / 180)) / 2 };
+  return {
+    dayKey,
+    fromMoon: moon.fromMoon,
+    signName: moon.signName,
+    title: moon.fromMoon === 1 ? 'Moon over your birth Moon' : `Moon ${ordinal(moon.fromMoon)} from your birth Moon`,
+    effect: MOON_DAY[moon.fromMoon - 1].effect,
+    elong: sky.elong,
+    lit: (1 - Math.cos((sky.elong * Math.PI) / 180)) / 2,
+    transits,
+    chandrashtama,
+    sadeSati: saturn.fromMoon === 12 ? 'rising' : saturn.fromMoon === 1 ? 'peak' : saturn.fromMoon === 2 ? 'setting' : null,
+    // Chandrashtama asks for the Moon's remedy; otherwise the heaviest planet in a hard place
+    pressing: chandrashtama ? 'Moon' : hard.length ? hard[0].name : 'Moon',
+  };
 }
 
 /* Today's Moon as seen from the north: lit on the right while it grows, on the left as it shrinks. */

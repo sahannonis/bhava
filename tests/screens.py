@@ -31,7 +31,13 @@ with sync_playwright() as p:
     pg.click('button.primary'); pg.wait_for_selector('.chart')
     assert pg.inner_text('.class-head h1') == 'The Sage', pg.inner_text('.class-head h1')
     assert 'Colombo, Sri Lanka, UTC+05:30' in pg.inner_text('.born')
-    assert 'Moon in your 2nd today, in Aries' in pg.inner_text('.sky'), pg.inner_text('.sky')
+    sky = pg.inner_text('.sky')
+    assert 'Moon 2nd from your birth Moon today, in Aries' in sky, sky
+    # Saturn is in Pisces, on this birth Moon: Sade Sati, and Saturn's remedy for the day
+    assert 'Sade Sati, the middle' in sky, sky
+    assert "Today's remedy, for Saturn" in sky, sky
+    pg.click('#remedy summary')
+    assert 'Om Shanaye Namah' in pg.inner_text('#remedy')
     # house 1 is chosen to start: Sun, Moon, Mercury and Venus join into one boss
     assert pg.inner_text('.panel h2') == '1st house, Pisces'
     assert pg.inner_text('.panel .kind') == 'Boss'
@@ -50,6 +56,16 @@ with sync_playwright() as p:
     # the 12th is always the final gate
     pg.locator('[data-house="12"] .hit').tap()
     assert pg.inner_text('.panel .kind') == 'Final gate'
+    # today's sky: Saturn crossing the 1st house, a hard place 1st from the birth Moon
+    pg.click('#modeSky')
+    assert pg.get_attribute('#modeSky', 'aria-pressed') == 'true'
+    pg.locator('[data-house="1"] .hit').tap()
+    panel = pg.inner_text('.panel')
+    assert 'Saturn' in panel and '1st from your birth Moon, a hard place' in panel, panel
+    assert pg.locator('.chart .hard-mark').count() >= 1
+    pg.screenshot(path=f'{OUT}/sky.png', full_page=True)
+    pg.click('#modeBirth')
+    assert pg.inner_text('.panel .kind') == 'Boss'
 
     # 2. the birth is kept on the device
     pg.reload(); pg.wait_for_selector('.chart')
@@ -66,6 +82,19 @@ with sync_playwright() as p:
     # 4. forget
     pg.click('#forget'); pg.wait_for_selector('#placeQ')
     pg.reload(); pg.wait_for_selector('#placeQ')
+
+    # 5. Chandrashtama: on 8 Nov 2026 the Moon is in Libra, 8th from a Pisces birth Moon
+    ctx2 = b.new_context(viewport={'width': 390, 'height': 844}, timezone_id='Asia/Colombo')
+    pg2 = ctx2.new_page()
+    pg2.clock.set_fixed_time('2026-11-08T09:00:00+05:30')
+    pg2.on('pageerror', lambda e: errs.append(str(e)))
+    pg2.goto(URL)
+    pg2.wait_for_function("document.getElementById('placeState').textContent === ''", timeout=20000)
+    pg2.fill('#date', '1985-03-21'); pg2.fill('#time', '06:45')
+    pg2.fill('#placeQ', 'colombo'); pg2.wait_for_selector('#placeList li'); pg2.click('#placeList li >> nth=0')
+    pg2.click('button.primary'); pg2.wait_for_selector('.chart')
+    sky2 = pg2.inner_text('.sky')
+    assert 'Chandrashtama today' in sky2 and "Today's remedy, for Moon" in sky2, sky2
 
     assert not errs, errs
     print('screens ok')

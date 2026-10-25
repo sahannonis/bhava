@@ -10,8 +10,8 @@ import './style.css';
 import { findPlaces, loadPlaces, placeFromCoords, placeLabel, type Place } from './places';
 import { castChart, ordinal, type Birth, type Reading } from './seed';
 import { chartSvg } from './chartSvg';
-import { ENEMIES, GROUND, KIND_NAME, REST_GIFT } from './content';
-import { moonDay, moonSvg } from './today';
+import { ENEMIES, GROUND, KIND_NAME, REMEDY, REST_GIFT, TRANSIT_LINE } from './content';
+import { moonSvg, todaySky, type Sky } from './today';
 import { startStarlight } from './ambience';
 import { forgetBirth, loadBirth, saveBirth } from './store';
 
@@ -148,8 +148,50 @@ function housePanel(r: Reading, n: number, current: number): string {
     <p class="where">${where} Clear it to read what this house says about you.</p>`;
 }
 
+/* What today's planets are doing over one house. */
+function skyPanel(r: Reading, n: number, sky: Sky): string {
+  const h = r.houses[n - 1];
+  const here = sky.transits.filter(t => t.house === n);
+  const list = here.length
+    ? `<ul class="foes">${here.map(t => `<li><span class="foe pl-${t.name.toLowerCase()}">${t.name}${t.retro ? ', retrograde' : ''}</span>
+        <span class="foe-what">${ordinal(t.fromMoon)} from your birth Moon, a <b>${t.good ? 'good' : 'hard'} place</b>. ${t.good ? TRANSIT_LINE[t.name].good : TRANSIT_LINE[t.name].hard}</span></li>`).join('')}</ul>`
+    : '<p>No planets are crossing this house today.</p>';
+  const born = h.planets.length ? `Born here: ${h.planets.map(p => p.name).join(', ')}.` : 'No birth planets here.';
+  return `<div class="panel-head">
+      <h2>${ordinal(n)} house, ${h.signName}</h2>
+      <span class="kind">Today</span>
+    </div>
+    ${list}
+    <p class="where">${born} Transits are counted from your birth Moon, in ${E_SIGN(r.chart.by.Moon.sign)}.</p>`;
+}
+const E_SIGN = (n: number) => ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'][n];
+
+function skyStrip(sky: Sky): string {
+  const notes = [
+    sky.chandrashtama ? '<p class="sky-note"><b>Chandrashtama today.</b> The Moon is 8th from your birth Moon: a day to go gently and put off big decisions.</p>' : '',
+    sky.sadeSati ? `<p class="sky-note"><b>Sade Sati${sky.sadeSati === 'rising' ? ', first part' : sky.sadeSati === 'peak' ? ', the middle' : ', last part'}.</b> Saturn's seven and a half years over your Moon. Slow, steady work carries you through.</p>` : '',
+  ].join('');
+  const rem = REMEDY[sky.pressing];
+  return `${moonSvg(sky.elong)}
+    <div class="sky-text">
+      <p class="sky-title"><span class="pl-moon">${sky.title}</span> today, in ${sky.signName}</p>
+      <p>${sky.effect}</p>
+      <small>${Math.round(sky.lit * 100)}% lit, ${sky.elong < 180 ? 'growing' : 'shrinking'}</small>
+    </div>
+    ${notes ? `<div class="sky-notes">${notes}</div>` : ''}
+    <details class="remedy" id="remedy">
+      <summary><span>Today's remedy, for <span class="pl-${sky.pressing.toLowerCase()}">${sky.pressing}</span></span></summary>
+      <p class="mantra">${rem.mantra}</p>
+      <p>Say it softly 11 times. ${rem.act} ${rem.practice}</p>
+      <small>For reflection, not a promise. In a run, doing it at a shrine softens ${sky.pressing}'s enemies for the day.</small>
+    </details>`;
+}
+
 const SWATCH = (kind: string) => `<svg class="swatch" viewBox="0 0 18 18" aria-hidden="true">
   ${kind === 'rest' ? '' : `<rect width="18" height="18" fill="url(#hatch-${kind})" />`}<rect class="sw-edge" x="0.75" y="0.75" width="16.5" height="16.5" /></svg>`;
+const LEGEND_BIRTH = `<li>${SWATCH('fight')}Fight</li><li>${SWATCH('boss')}Boss</li><li>${SWATCH('gate')}Final gate</li><li>${SWATCH('rest')}Rest place</li>
+      <li><svg class="swatch" viewBox="0 0 18 18" aria-hidden="true"><line class="here-mark" x1="2" y1="9" x2="17" y2="9" /></svg>You are here</li>`;
+const LEGEND_SKY = `<li><svg class="swatch" viewBox="0 0 18 18" aria-hidden="true"><line class="hard-mark" x1="2" y1="12" x2="16" y2="12" /></svg>Underlined: a hard place for your Moon today</li>`;
 
 function showChart(r: Reading) {
   const local = new Intl.DateTimeFormat('en-GB', {
@@ -157,9 +199,10 @@ function showChart(r: Reading) {
     ...(r.timeKnown ? { hour: '2-digit', minute: '2-digit' } : {}),
   }).format(new Date(r.utc));
   const lagnaName = r.houses[0].signName;
-  const day = moonDay(r);
+  const sky = todaySky(r);
   const current = 1;
   let selected = current;
+  let mode: 'birth' | 'sky' = 'birth';
 
   app.innerHTML = `
   <main class="leaf map-screen">
@@ -169,19 +212,13 @@ function showChart(r: Reading) {
       <p class="lead">${r.timeKnown ? 'Your lagna is' : 'Read from your Moon in'} ${lagnaName}, ruled by ${r.cls.ruler}. ${r.cls.style}</p>
       ${r.timeKnown ? '' : '<p class="note">Without a birth time, your houses are read from the Moon. Add the time if you can find it.</p>'}
     </header>
-    <section class="sky" aria-label="Today's sky">
-      ${moonSvg(day.elong)}
-      <div>
-        <p class="sky-title"><span class="pl-moon">${day.title}</span> today, in ${day.signName}</p>
-        <p>${day.effect}</p>
-        <small>${Math.round(day.lit * 100)}% lit, ${day.elong < 180 ? 'growing' : 'shrinking'}</small>
-      </div>
-    </section>
+    <section class="sky" aria-label="Today's sky">${skyStrip(sky)}</section>
+    <div class="modes" role="group" aria-label="Show">
+      <button type="button" class="mode" id="modeBirth" aria-pressed="true">Birth chart</button>
+      <button type="button" class="mode" id="modeSky" aria-pressed="false">Today's sky</button>
+    </div>
     <figure class="chart-wrap" id="map">${chartSvg(r, { current, selected, cast: true })}</figure>
-    <ul class="legend" aria-label="What the ink means">
-      <li>${SWATCH('fight')}Fight</li><li>${SWATCH('boss')}Boss</li><li>${SWATCH('gate')}Final gate</li><li>${SWATCH('rest')}Rest place</li>
-      <li><svg class="swatch" viewBox="0 0 18 18" aria-hidden="true"><line class="here-mark" x1="2" y1="9" x2="17" y2="9" /></svg>You are here</li>
-    </ul>
+    <ul class="legend" id="legend" aria-label="What the ink means">${LEGEND_BIRTH}</ul>
     <section class="panel" id="panel" aria-live="polite">${housePanel(r, selected, current)}</section>
     <div class="enter">
       <button class="primary" id="enter" disabled>Enter the ${ordinal(current)} house</button>
@@ -194,16 +231,29 @@ function showChart(r: Reading) {
     </footer>
   </main>`;
 
-  const map = document.getElementById('map')!, panel = document.getElementById('panel')!;
+  const map = document.getElementById('map')!, panel = document.getElementById('panel')!, legend = document.getElementById('legend')!;
+  const draw = (cast = false) => {
+    map.innerHTML = chartSvg(r, { current: mode === 'birth' ? current : undefined, selected, cast, sky: mode === 'sky' ? sky.transits : undefined });
+    panel.innerHTML = mode === 'sky' ? skyPanel(r, selected, sky) : housePanel(r, selected, current);
+    panel.classList.remove('turn'); void panel.offsetWidth; panel.classList.add('turn');
+  };
   const select = (n: number) => {
     selected = n;
-    map.innerHTML = chartSvg(r, { current, selected });
-    panel.innerHTML = housePanel(r, n, current);
-    panel.classList.remove('turn'); void panel.offsetWidth; panel.classList.add('turn');
+    draw();
     const box = panel.getBoundingClientRect();
     if (box.top > window.innerHeight - 120) panel.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
     (map.querySelector(`[data-house="${n}"]`) as SVGGElement | null)?.focus({ preventScroll: true });
   };
+  const setMode = (m: 'birth' | 'sky') => {
+    if (m === mode) return;
+    mode = m;
+    document.getElementById('modeBirth')!.setAttribute('aria-pressed', String(m === 'birth'));
+    document.getElementById('modeSky')!.setAttribute('aria-pressed', String(m === 'sky'));
+    legend.innerHTML = m === 'sky' ? LEGEND_SKY : LEGEND_BIRTH;
+    draw(true);
+  };
+  document.getElementById('modeBirth')!.addEventListener('click', () => setMode('birth'));
+  document.getElementById('modeSky')!.addEventListener('click', () => setMode('sky'));
   map.addEventListener('click', e => {
     const g = (e.target as Element).closest('[data-house]') as SVGGElement | null;
     if (g) select(+g.dataset.house!);

@@ -3,6 +3,7 @@
    cut into the leaf. What waits in each house is shown by ink hatching: light for a fight, dense for
    a boss, crossed for the final gate, none for a rest place. Each house is a tappable shape (data-house). */
 import type { Reading } from './seed';
+import type { Transit } from './today';
 
 const ABBR: Record<string, string> = { Sun: 'Su', Moon: 'Mo', Mars: 'Ma', Mercury: 'Me', Jupiter: 'Ju', Venus: 'Ve', Saturn: 'Sa', Rahu: 'Ra', Ketu: 'Ke' };
 
@@ -34,7 +35,10 @@ const DEFS = `<defs>
   <pattern id="hatch-gate" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" /><line x1="0" y1="0" x2="7" y2="0" /></pattern>
 </defs>`;
 
-export type MapState = { current?: number; selected?: number; cast?: boolean };
+export type MapState = {
+  current?: number; selected?: number; cast?: boolean;
+  sky?: Transit[]; // when set, today's planets are drawn instead of the birth planets
+};
 
 /* Each planet breathes at its own pace, quick for the Moon and slow for Saturn, as they move in the sky. */
 const BREATH: Record<string, number> = { Moon: 3.2, Mercury: 4.1, Venus: 4.8, Sun: 5.6, Mars: 6.4, Rahu: 7.6, Ketu: 7.6, Jupiter: 9, Saturn: 11 };
@@ -44,22 +48,25 @@ export function chartSvg(r: Reading, state: MapState = {}): string {
   const houses = r.houses.map(h => {
     const [sx, sy] = SIGN_AT[h.n];
     const [px, py, per, flow] = PLANETS_AT[h.n];
-    const rows = Math.ceil(h.planets.length / per);
+    const shown: { name: string; hard?: boolean }[] = state.sky
+      ? state.sky.filter(t => t.house === h.n).map(t => ({ name: t.name, hard: !t.good }))
+      : h.planets;
+    const rows = Math.ceil(shown.length / per);
     const startY = flow === 'down' ? py : flow === 'up' ? py - (rows - 1) * 21 : py - ((rows - 1) * 21) / 2;
-    const names = h.planets.map((p, i) => {
-      const row = Math.floor(i / per), inRow = Math.min(per, h.planets.length - row * per), col = i % per;
+    const names = shown.map((p, i) => {
+      const row = Math.floor(i / per), inRow = Math.min(per, shown.length - row * per), col = i % per;
       const x = px + (col - (inRow - 1) / 2) * 31, y = startY + row * 21;
       const id = p.name.toLowerCase(), at = `x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central"`;
       return `<g class="pl-g" style="--rise:${(1.5 + 0.13 * rise++).toFixed(2)}s;--breath:${BREATH[p.name]}s;--lag:${(-((x * 7 + y * 3) % 50) / 10).toFixed(1)}s">
         <text class="pl-glow glow-${id}" ${at} filter="url(#planet-glow)">${ABBR[p.name]}</text>
-        <text class="pl pl-${id}" ${at}>${ABBR[p.name]}</text>
+        <text class="pl pl-${id}" ${at}>${ABBR[p.name]}</text>${p.hard ? `<line class="hard-mark" x1="${x - 9}" x2="${x + 9}" y1="${y + 11}" y2="${y + 11}" />` : ''}
       </g>`;
     }).join('');
     const lagna = h.n === 1 ? `<text class="lagna-word" x="200" y="160" text-anchor="middle">lagna</text>` : '';
     const hatch = h.kind === 'rest' ? '' : `<polygon class="hatch" points="${SHAPES[h.n]}" fill="url(#hatch-${h.kind})" />`;
     const cls = ['house', `kind-${h.kind}`, state.current === h.n ? 'is-current' : '', state.selected === h.n ? 'is-selected' : ''].filter(Boolean).join(' ');
     const what = h.kind === 'rest' ? 'rest place' : h.kind === 'gate' ? 'final gate' : h.kind;
-    return `<g class="${cls}" data-house="${h.n}" role="button" tabindex="0" aria-pressed="${state.selected === h.n}" aria-label="${h.n}${['st', 'nd', 'rd'][h.n - 1] || 'th'} house, ${h.signName}, ${what}${h.planets.length ? `: ${h.planets.map(p => p.name).join(', ')}` : ''}">
+    return `<g class="${cls}" data-house="${h.n}" role="button" tabindex="0" aria-pressed="${state.selected === h.n}" aria-label="${h.n}${['st', 'nd', 'rd'][h.n - 1] || 'th'} house, ${h.signName}, ${what}${shown.length ? `: ${state.sky ? 'today ' : ''}${shown.map(p => p.name).join(', ')}` : ''}">
       ${hatch}<polygon class="hit" points="${SHAPES[h.n]}" />${state.selected === h.n ? `<polygon class="lit" points="${SHAPES[h.n]}" fill="url(#lamp-on-house)" />` : ''}
       <text class="sign-no" x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central">${h.sign + 1}</text>${lagna}${names}
     </g>`;
@@ -67,7 +74,7 @@ export function chartSvg(r: Reading, state: MapState = {}): string {
   const sel = state.selected ? `<polygon class="selected-ring" points="${SHAPES[state.selected]}" />` : '';
   // where you stand: a dotted line of red ink around the house
   const here = state.current ? `<polygon class="current-ring" points="${SHAPES[state.current]}" />` : '';
-  return `<svg class="chart${state.cast ? ' cast' : ''}" viewBox="-4 -4 408 408" role="group" aria-label="Your birth chart, your twelve houses">
+  return `<svg class="chart${state.cast ? ' cast' : ''}${state.sky ? ' sky-mode' : ''}" viewBox="-4 -4 408 408" role="group" aria-label="${state.sky ? 'Today\'s planets over your twelve houses' : 'Your birth chart, your twelve houses'}">
     ${DEFS}
     ${houses}
     <path class="cut-light" d="${LINES}" transform="translate(0 1.4)" />
