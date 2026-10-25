@@ -116,8 +116,11 @@ function autoplay(state: CombatState): CombatState {
     while (played && state.phase === 'player') {
       played = false;
       const incoming = intentOf(state, 0).reduce((n, i) => n + (i.kind === 'attack' ? i.each * i.times : 0), 0);
-      const order = incoming > state.player.block ? ['guard', 'gurusShield', 'tidecall', 'charm', 'weighDown'] : [];
-      for (const id of [...order, 'openWound', 'ember', 'redRush', 'slowToll', 'noon', 'strike', 'quickWit', 'weighDown', 'guard']) {
+      const order = incoming > state.player.block ? ['stoneWall', 'gurusShield', 'guard', 'blessing', 'tidecall', 'charm', 'sweetWords', 'weighDown', 'wane', 'ebb'] : [];
+      const attacks = ['quickWit', 'release', 'deepBreath', 'wisdom', 'moonlight', 'doubleTalk', 'kinglyBearing', 'warCry', 'focus', 'openWound', 'feint',
+        'ember', 'solarFlare', 'redRush', 'twinSpears', 'thunderbolt', 'eclipse', 'hunger', 'slowToll', 'grind', 'noon', 'silkLash', 'messenger', 'riposte', 'strike',
+        'weighDown', 'wane', 'sweetWords', 'guard', 'blessing', 'tidecall', 'gurusShield', 'ebb', 'grace', 'detach', 'stoneWall'];
+      for (const id of [...order, ...attacks]) {
         const i = find(state, id);
         if (i >= 0 && !cantPlay(state, i)) { playCard(state, i, 0); played = true; break; }
       }
@@ -128,7 +131,7 @@ function autoplay(state: CombatState): CombatState {
 }
 
 test('the practice fight can be won with the starter deck, the same way every time for the same birth', () => {
-  const play = () => autoplay(startCombat({ deck: starterDeck('Jupiter'), enemies: ['shade'], ground: 'water', seed: 777, run: 0, hp: 60, maxHp: 60 }).state);
+  const play = () => autoplay(startCombat({ deck: starterDeck('Jupiter'), enemies: ['shade'], ground: 'water', seed: 777, run: 0, hp: 60, maxHp: 60, mods: { cls: 'Jupiter' } }).state);
   const a = play(), b = play();
   assert.equal(a.phase, 'won');
   assert.equal(a.turn, b.turn);
@@ -138,7 +141,88 @@ test('the practice fight can be won with the starter deck, the same way every ti
 test('every class can win the practice fight on every ground', () => {
   for (const ruler of ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn'])
     for (const ground of ['fire', 'earth', 'air', 'water'] as const) {
-      const s = autoplay(startCombat({ deck: starterDeck(ruler), enemies: ['shade'], ground, seed: 31, run: 0, hp: 60, maxHp: 60 }).state);
+      const s = autoplay(startCombat({ deck: starterDeck(ruler), enemies: ['shade'], ground, seed: 31, run: 0, hp: 60, maxHp: 60, mods: { cls: ruler } }).state);
       assert.equal(s.phase, 'won', `${ruler} on ${ground}`);
     }
+});
+
+/* ---------- Day 4: traits, yogas, gifts ---------- */
+test('class traits: Mercury draws 6, Jupiter starts with 8 block, Mars with might, Venus weakens', () => {
+  const opt = (cls: string) => base({ ground: 'water', mods: { cls } }).state;
+  assert.equal(opt('Mercury').hand.length, 6);
+  assert.equal(opt('Jupiter').player.block, 8);
+  assert.equal(opt('Mars').player.status.might, 1);
+  assert.equal(opt('Venus').enemies[0].status.weak, 1);
+});
+
+test('Saturn gets a fourth breath from turn 4; the Sun gains might every third turn', () => {
+  for (const [cls, check] of [['Saturn', (s: CombatState) => s.player.breath === 4], ['Sun', (s: CombatState) => s.player.status.might === 1]] as const) {
+    const { state } = base({ ground: 'water', hp: 500, maxHp: 500, mods: { cls } });
+    for (let i = 0; i < 3; i++) { state.enemies[0].status.charmed = 1; endTurn(state); }
+    assert.equal(state.turn, 4);
+    assert.ok(check(state), cls);
+  }
+});
+
+test('the Moon class heals 2 at the end of each turn', () => {
+  const { state } = base({ ground: 'air', mods: { cls: 'Moon' } });
+  state.player.hp = 40; state.enemies[0].status.charmed = 1;
+  endTurn(state);
+  assert.equal(state.player.hp, 42);
+});
+
+test('two planets in one turn form a yoga, once per turn', () => {
+  const { state } = base({ ground: 'water' });
+  state.player.breath = 10;
+  playCard(state, give(state, 'moonlight'));               // Moon
+  const ev = playCard(state, give(state, 'gurusShield'));  // Jupiter: Gajakesari, 8 block
+  assert.ok(ev.some(e => e.t === 'yoga' && e.id === 'gajakesari'));
+  assert.equal(state.player.block, 9 + 8);
+  const again = playCard(state, give(state, 'blessing'));  // Jupiter again: no second Gajakesari
+  assert.ok(!again.some(e => e.t === 'yoga'));
+});
+
+test('Grahan Yoga forms with Rahu and either light', () => {
+  const { state } = base({ ground: 'water' });
+  state.player.breath = 10;
+  playCard(state, give(state, 'ember'), 0);  // Sun
+  const ev = playCard(state, give(state, 'hunger'), 0); // Rahu
+  assert.ok(ev.some(e => e.t === 'yoga' && e.id === 'grahan'));
+  assert.ok((state.enemies[0].status.exposed ?? 0) >= 2);
+});
+
+test('a lent gift card is in the opening hand and is used up when played', () => {
+  const { state, events } = base({ ground: 'water', mods: { giftCard: 'thunderbolt' } });
+  assert.ok(events.some(e => e.t === 'gift'));
+  const i = state.hand.findIndex(c => c.lent);
+  assert.ok(i >= 0);
+  playCard(state, i, 0);
+  assert.ok(state.used.some(c => c.id === 'thunderbolt'));
+  assert.ok(!state.discard.some(c => c.id === 'thunderbolt'));
+});
+
+test('drain heals what gets through, cleanse clears burn, weak and exposed', () => {
+  const { state } = base({ ground: 'water' });
+  state.player.hp = 40;
+  playCard(state, give(state, 'hunger'), 0);
+  assert.equal(state.player.hp, 46);
+  state.player.status = { burn: 3, weak: 2, exposed: 1, might: 2 };
+  playCard(state, give(state, 'grace'));
+  assert.deepEqual(state.player.status, { might: 2 });
+});
+
+test('Messenger grows with each card played before it this turn', () => {
+  const { state } = base({ ground: 'water' });
+  state.player.breath = 10;
+  playCard(state, give(state, 'guard'));
+  playCard(state, give(state, 'guard'));
+  playCard(state, give(state, 'messenger'), 0);
+  assert.equal(state.enemies[0].hp, 42 - 7);
+});
+
+test('every card can be described and every class deck is 11 cards', async () => {
+  const { CARDS, cardText, CLASS_CARDS } = await import('../src/game/cards');
+  for (const def of Object.values(CARDS)) assert.ok(cardText(def).length > 5, def.id);
+  for (const ruler of Object.keys(CLASS_CARDS)) assert.equal(starterDeck(ruler).length, 11);
+  assert.ok(Object.keys(CARDS).length >= 35);
 });

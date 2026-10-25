@@ -3,12 +3,13 @@
 import { CARDS, type CardDef, type StatusId } from './cards';
 import { ENEMY_DEFS, type EnemyAction, type EnemyDef, type Move } from './enemies';
 import { rngFor, type Rng } from '../rng';
+import { yogasFormed, type Yoga, type YogaEffect } from './yogas';
 
 export type Element = 'fire' | 'earth' | 'air' | 'water';
 export type Who = 'player' | number; // a number is an enemy's place in the line
 export type Statuses = Partial<Record<StatusId, number>>;
 export type Fighter = { hp: number; maxHp: number; block: number; status: Statuses };
-export type CardInst = { uid: number; id: string };
+export type CardInst = { uid: number; id: string; lent?: boolean }; // lent: a gift for this fight only
 
 export type EnemyState = Fighter & {
   def: EnemyDef;
@@ -24,6 +25,8 @@ export type Mods = {
   enemyDamageBonus?: number;
   enemyHpMult?: number;
   firstCardFree?: boolean;
+  cls?: string;        // the class's planet (lagna ruler), for its trait
+  giftCard?: string;   // a card lent by today's best-placed planet, in the opening hand
 };
 
 export type CombatState = {
@@ -38,6 +41,8 @@ export type CombatState = {
   used: CardInst[];
   playerAttackedThisTurn: boolean;
   cardsPlayedThisTurn: number;
+  planetsThisTurn: Set<string>;
+  yogasThisTurn: Set<string>;
   mods: Mods;
   rng: Rng;
 };
@@ -55,6 +60,9 @@ export type CombatEvent =
   | { t: 'move'; who: number; name: string }
   | { t: 'skip'; who: number }
   | { t: 'death'; who: Who }
+  | { t: 'yoga'; id: string; name: string }
+  | { t: 'trait'; text: string }
+  | { t: 'gift'; uid: number; id: string }
   | { t: 'end'; result: 'won' | 'lost' };
 
 const HAND_MAX = 10;
@@ -87,12 +95,21 @@ export function startCombat(o: StartOptions): { state: CombatState; events: Comb
   });
   const state: CombatState = {
     turn: 0, phase: 'player', ground: o.ground,
-    player: { hp: o.hp, maxHp: o.maxHp, block: 0, status: {}, breath: 3, maxBreath: 3, drawSize: 5 },
+    player: { hp: o.hp, maxHp: o.maxHp, block: 0, status: {}, breath: 3, maxBreath: 3, drawSize: mods.cls === 'Mercury' ? 6 : 5 },
     enemies, drawPile: cards, hand: [], discard: [], used: [],
-    playerAttackedThisTurn: false, cardsPlayedThisTurn: 0, mods, rng,
+    playerAttackedThisTurn: false, cardsPlayedThisTurn: 0, planetsThisTurn: new Set(), yogasThisTurn: new Set(), mods, rng,
   };
   const events: CombatEvent[] = [];
+  // class traits that act once, as the fight begins
+  if (mods.cls === 'Mars') { state.player.status.might = 1; }
+  if (mods.cls === 'Venus') enemies.forEach(e => { e.status.weak = (e.status.weak ?? 0) + 1; });
   startPlayerTurn(state, events);
+  if (mods.cls === 'Jupiter') gainBlock(state, 'player', 8, events);
+  if (mods.giftCard && CARDS[mods.giftCard]) {
+    const g = { uid: uid++, id: mods.giftCard, lent: true };
+    state.hand.push(g);
+    events.push({ t: 'gift', uid: g.uid, id: g.id });
+  }
   return { state, events };
 }
 
@@ -100,10 +117,14 @@ export function startCombat(o: StartOptions): { state: CombatState; events: Comb
 export const enemyMove = (e: EnemyState): Move => e.def.moves[e.moveIdx];
 
 /* What a card's damage comes to this turn before might, weak and exposed. */
-export function baseDamage(def: CardDef, turn: number): number {
-  const d = def.effects.find(e => e.kind === 'damage');
-  if (!d || d.kind !== 'damage') return 0;
-  return d.perTurn ? Math.min(d.max ?? Infinity, d.amount + d.perTurn * (turn - 1)) : d.amount;
+export function baseDamage(def: CardDef, turn: number, playedBefore = 0): number {
+  const d = def.effects.find(e => e.kind === 'damage' || e.kind === 'drain');
+  if (!d) return 0;
+  if (d.kind === 'drain') return d.amount;
+  if (d.kind !== 'damage') return 0;
+  if (d.perTurn) return Math.min(d.max ?? Infinity, d.amount + d.perTurn * (turn - 1));
+  if (d.perPlayed) return Math.min(d.max ?? Infinity, d.amount + d.perPlayed * playedBefore);
+  return d.amount;
 }
 
 export function cardCost(s: CombatState, c: CardInst): number {
@@ -156,6 +177,7 @@ export function playCard(s: CombatState, handIdx: number, target?: number): Comb
     t = target !== undefined && s.enemies[target] && isAlive(s.enemies[target]) ? target : s.enemies.findIndex(isAlive);
     if (t < 0) return events;
   }
+  const playedBefore = s.cardsPlayedThisTurn;
   s.player.breath -= cardCost(s, card);
   s.hand.splice(handIdx, 1);
   s.cardsPlayedThisTurn++;
@@ -165,11 +187,22 @@ export function playCard(s: CombatState, handIdx: number, target?: number): Comb
     if (s.phase !== 'player') break;
     switch (e.kind) {
       case 'damage': {
-        const base = baseDamage(def, s.turn);
+        const base = baseDamage(def, s.turn, playedBefore);
         for (let i = 0; i < (e.times ?? 1); i++) {
           if (t === null || !isAlive(s.enemies[t])) break;
           hit(s, 'player', t, base, events);
         }
+        break;
+      }
+      case 'drain': {
+        if (t === null || !isAlive(s.enemies[t])) break;
+        const got = hit(s, 'player', t, e.amount, events);
+        if (got > 0) heal(s, 'player', got, events);
+        break;
+      }
+      case 'breath': s.player.breath += e.n; break;
+      case 'cleanse': {
+        for (const k of ['burn', 'weak', 'exposed'] as const) delete s.player.status[k];
         break;
       }
       case 'block': gainBlock(s, 'player', e.amount, events); break;
@@ -183,9 +216,37 @@ export function playCard(s: CombatState, handIdx: number, target?: number): Comb
       }
     }
   }
-  (def.exhaust ? s.used : s.discard).push(card);
+  (def.exhaust || card.lent ? s.used : s.discard).push(card);
+
+  // two planets' cards in one turn can form a yoga
+  if (def.planet && s.phase === 'player') {
+    for (const y of yogasFormed(s.planetsThisTurn, def.planet, s.yogasThisTurn)) {
+      s.yogasThisTurn.add(y.id);
+      events.push({ t: 'yoga', id: y.id, name: y.name });
+      applyYoga(s, y, t, events);
+      if (s.phase !== 'player') break;
+    }
+    s.planetsThisTurn.add(def.planet);
+  }
   checkEnd(s, events);
   return events;
+}
+
+function applyYoga(s: CombatState, y: Yoga, target: number | null, events: CombatEvent[]) {
+  const foe = target !== null && isAlive(s.enemies[target]) ? target : s.enemies.findIndex(isAlive);
+  for (const e of y.effects as YogaEffect[]) {
+    if (s.phase !== 'player') return;
+    switch (e.kind) {
+      case 'draw': drawCards(s, e.n, events); break;
+      case 'block': gainBlock(s, 'player', e.amount, events); break;
+      case 'breath': s.player.breath += e.n; break;
+      case 'damage': if (foe >= 0) hit(s, 'player', foe, e.amount, events, false); break;
+      case 'heal': heal(s, 'player', e.amount, events); break;
+      case 'loseHp': { const n = Math.min(e.amount, s.player.hp - 1); if (n > 0) { s.player.hp -= n; events.push({ t: 'damage', to: 'player', amount: n, blocked: 0, from: 'player' }); } break; }
+      case 'status': if (e.to === 'self') addStatus(s, 'player', e.status, e.amount, events); else if (foe >= 0) addStatus(s, foe, e.status, e.amount, events); break;
+    }
+    checkEnd(s, events);
+  }
 }
 
 export function endTurn(s: CombatState): CombatEvent[] {
@@ -195,6 +256,7 @@ export function endTurn(s: CombatState): CombatEvent[] {
   // the player's turn ends
   if (s.hand.length) { events.push({ t: 'discard', uids: s.hand.map(c => c.uid) }); s.discard.push(...s.hand); s.hand = []; }
   if (s.ground === 'water') heal(s, 'player', 2, events);
+  if (s.mods.cls === 'Moon') heal(s, 'player', 2, events);
   tickDown(s.player.status);
 
   // the enemies' turn
@@ -229,10 +291,14 @@ export function endTurn(s: CombatState): CombatEvent[] {
 function startPlayerTurn(s: CombatState, events: CombatEvent[]) {
   s.turn += 1;
   if (s.ground !== 'earth') s.player.block = 0;
-  s.player.breath = s.player.maxBreath;
+  s.player.breath = s.player.maxBreath + (s.mods.cls === 'Saturn' && s.turn >= 4 ? 1 : 0);
   s.playerAttackedThisTurn = false;
   s.cardsPlayedThisTurn = 0;
+  s.planetsThisTurn = new Set();
+  s.yogasThisTurn = new Set();
   events.push({ t: 'turn', who: 'player', turn: s.turn });
+  if (s.mods.cls === 'Sun' && s.turn % 3 === 0) { addStatus(s, 'player', 'might', 1, events); events.push({ t: 'trait', text: 'The Radiant grows stronger' }); }
+  if (s.mods.cls === 'Saturn' && s.turn === 4) events.push({ t: 'trait', text: 'The Ascetic finds a fourth breath' });
   burnTick(s, 'player', events);
   if (s.phase !== 'player') return;
   drawCards(s, s.player.drawSize + (s.ground === 'air' ? 1 : 0), events);
@@ -254,18 +320,22 @@ function drawCards(s: CombatState, n: number, events: CombatEvent[]) {
   if (got.length) events.push({ t: 'draw', uids: got });
 }
 
-function hit(s: CombatState, from: Who, to: Who, base: number, events: CombatEvent[]) {
+function hit(s: CombatState, from: Who, to: Who, base: number, events: CombatEvent[], attack = true): number {
   const target = fighter(s, to);
-  const amount = attackDamage(s, from, to, base);
+  const amount = attack ? attackDamage(s, from, to, base) : base;
   const blocked = Math.min(target.block, amount);
   target.block -= blocked;
+  const through = Math.min(target.hp, amount - blocked);
   target.hp = Math.max(0, target.hp - (amount - blocked));
   events.push({ t: 'damage', to, amount: amount - blocked, blocked, from });
-  // burning ground: each side's first attack in a turn also burns
-  const first = from === 'player' ? !s.playerAttackedThisTurn : !s.enemies[from].attackedThisTurn;
-  if (from === 'player') s.playerAttackedThisTurn = true; else s.enemies[from].attackedThisTurn = true;
-  if (s.ground === 'fire' && first && isAlive(target)) addStatus(s, to, 'burn', 2, events);
+  if (attack) {
+    // burning ground: each side's first attack in a turn also burns
+    const first = from === 'player' ? !s.playerAttackedThisTurn : !s.enemies[from].attackedThisTurn;
+    if (from === 'player') s.playerAttackedThisTurn = true; else s.enemies[from].attackedThisTurn = true;
+    if (s.ground === 'fire' && first && isAlive(target)) addStatus(s, to, 'burn', 2, events);
+  }
   if (!isAlive(target)) events.push({ t: 'death', who: to });
+  return through;
 }
 
 function enemyAct(s: CombatState, i: number, a: EnemyAction, events: CombatEvent[]) {

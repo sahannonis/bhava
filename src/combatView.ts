@@ -1,8 +1,10 @@
 /* The fight screen. It shows the state, takes taps, and plays back the events the rules return:
    cards fly, hits land with a short freeze and a shake, numbers rise like brush strokes,
    and the phone gives a small kick. With reduced motion on, the same story plays without movement. */
-import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 import { CARDS, STATUS_INFO, cardText, type StatusId } from './game/cards';
+import { YOGAS, yogaText } from './game/yogas';
+import { buzz } from './haptics';
+import { getSettings, setSetting } from './settings';
 import {
   attackDamage, baseDamage, cantPlay, cardCost, endTurn, intentOf, playCard, startCombat,
   type CombatEvent, type Element as Ground, type Intent, type Mods, type Who,
@@ -20,6 +22,7 @@ export type FightSetup = {
   maxHp: number;
   mods: Mods;
   modNote?: string;       // today's effect, if it touches the fight
+  giftFrom?: string;      // the planet lending today's card
 };
 export type FightResult = { result: 'won' | 'lost' | 'left'; hp: number; turns: number };
 
@@ -27,13 +30,7 @@ const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const sleep = (ms: number) => new Promise(r => setTimeout(r, still() ? Math.min(ms, 60) : ms));
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
-const buzz = (kind: 'light' | 'medium' | 'heavy' | 'win' | 'lose') => {
-  try {
-    if (kind === 'win') void Haptics.notification({ type: NotificationType.Success });
-    else if (kind === 'lose') void Haptics.notification({ type: NotificationType.Error });
-    else void Haptics.impact({ style: kind === 'light' ? ImpactStyle.Light : kind === 'medium' ? ImpactStyle.Medium : ImpactStyle.Heavy });
-  } catch { /* no vibration on this device */ }
-};
+
 
 /* ---------- small ink drawings ---------- */
 const ICON = {
@@ -143,15 +140,16 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     const c = state.hand[i], def = CARDS[c.id];
     const cost = cardCost(state, c), why = cantPlay(state, i);
     // show attack numbers as they would land on the first living enemy
-    let text = cardText(def, state.turn);
+    let text = cardText(def, state.turn, state.cardsPlayedThisTurn);
     const dmg = def.effects.find(e => e.kind === 'damage');
     const foe = state.enemies.findIndex(e => e.hp > 0);
     if (dmg && foe >= 0) {
-      const real = attackDamage(state, 'player', foe, baseDamage(def, state.turn));
-      text = text.replace(/Deal \d+ damage/, `Deal <b class="${real > baseDamage(def, state.turn) ? 'up' : real < baseDamage(def, state.turn) ? 'down' : ''}">${real}</b> damage`);
+      const b = baseDamage(def, state.turn, state.cardsPlayedThisTurn);
+      const real = attackDamage(state, 'player', foe, b);
+      text = text.replace(/Deal \d+ damage/, `Deal <b class="${real > b ? 'up' : real < b ? 'down' : ''}">${real}</b> damage`);
     }
     const n = state.hand.length, mid = (n - 1) / 2, tilt = (i - mid) * (n > 1 ? Math.min(3, 12 / n) : 0);
-    return `<button class="card ${def.type}${def.planet ? ` planet-${def.planet.toLowerCase()}` : ''}${selected === i ? ' picked' : ''}${why ? ' dim' : ''}${enter ? ' enter' : ''}"
+    return `<button class="card ${def.type}${def.planet ? ` planet-${def.planet.toLowerCase()}` : ''}${c.lent ? ' lent' : ''}${selected === i ? ' picked' : ''}${why ? ' dim' : ''}${enter ? ' enter' : ''}"
         data-card="${i}" data-uid="${c.uid}" style="--tilt:${tilt.toFixed(1)}deg;--drop:${(Math.abs(i - mid) ** 2 * 2.2).toFixed(1)}px;--delay:${enter ? i * 55 : 0}ms"
         aria-pressed="${selected === i}" aria-label="${esc(def.name)}, costs ${cost} breath. ${text.replace(/<[^>]+>/g, '')}${why ? ` ${why}` : ''}">
       <span class="cost${cost < def.cost ? ' free' : ''}">${cost}</span>
@@ -159,6 +157,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
       <span class="card-kind">${def.type === 'attack' ? ICON.blade : ICON.shield}</span>
       <span class="card-text">${text}</span>
       ${def.planet ? `<span class="seal">${def.planet.slice(0, 2)}</span>` : ''}
+      ${c.lent ? `<span class="lent-tag">Lent by ${esc(setup.giftFrom ?? 'the sky')}</span>` : ''}
     </button>`;
   }
 
@@ -221,6 +220,15 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     await sleep(650);
   }
 
+  async function yogaBanner(name: string, meaning: string) {
+    const el = document.createElement('div');
+    el.className = 'yoga';
+    el.innerHTML = `<p class="yoga-name">${esc(name)}</p><p class="yoga-meaning">${esc(meaning)}</p>`;
+    fightEl.appendChild(el);
+    await sleep(1500);
+    el.remove();
+  }
+
   /* Move hp and block bars by an event without redrawing everything. */
   function nudgeBar(w: Who) {
     const el = whoEl(w);
@@ -260,7 +268,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
               : [{ transform: 'translate(0,0) scale(1.08)' }, { transform: `translate(${dx * 0.3}px,${dy - 30}px) scale(0.7)`, opacity: 0 }];
             await cardEl.animate(pull, { duration: def.type === 'attack' ? 300 : 340, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
           }
-          buzz('light');
+          buzz('tap');
           break;
         }
         case 'damage': {
@@ -275,7 +283,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
             shake(el, ev.amount >= 10);
             if (ev.amount >= 10) shake(fightEl);
             if (ev.to === 'player') { fightEl.classList.remove('ouch'); void fightEl.offsetWidth; fightEl.classList.add('ouch'); }
-            buzz(ev.amount >= 10 ? 'heavy' : 'medium');
+            buzz(ev.amount >= 10 ? 'big' : 'hit');
           } else if (ev.blocked) float(el, 'Blocked', 'blocked');
           await sleep(ev.from === 'burn' ? 380 : 300);
           break;
@@ -308,6 +316,14 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
           break;
         }
         case 'shuffle': float($('piles'), 'Shuffled', 'move'); await sleep(200); break;
+        case 'yoga': {
+          const y = YOGAS.find(x => x.id === ev.id)!;
+          buzz('yoga');
+          await yogaBanner(y.name, yogaText(y));
+          break;
+        }
+        case 'trait': float($('you'), ev.text, 'move'); await sleep(500); break;
+        case 'gift': break;
         case 'end': await finish(ev.result); return;
       }
     }
@@ -317,6 +333,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
   /* ---------- the end ---------- */
   async function finish(result: 'won' | 'lost') {
     busy = true;
+    if (stepIdx >= 0) endGuide();
     drawPiles();
     buzz(result === 'won' ? 'win' : 'lose');
     await sleep(400);
@@ -357,7 +374,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     const events = playCard(state, handIdx, target);
     await playBack(events, before);
     busy = false;
-    if (state.phase === 'player') drawAll();
+    if (state.phase === 'player') { drawAll(); guideOn('play'); }
   }
 
   $('hand').addEventListener('click', e => {
@@ -392,8 +409,60 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     await playBack(events, before);
     busy = state.phase !== 'player';
     drawPiles();
+    if (state.phase === 'player') guideOn('end');
   });
   $('leave').addEventListener('click', () => done({ result: 'left', hp: state.player.hp, turns: state.turn }));
+
+  /* ---------- the guide, on the first fight ---------- */
+  type Step = { at: string; text: () => string; wait?: 'play' | 'end' };
+  const steps: Step[] = [
+    { at: '.foe .intents', text: () => {
+      const it = intentOf(state, 0).find(x => x.kind === 'attack');
+      const hitText = it && it.kind === 'attack' ? ` This one will hit you for ${it.each}${it.times > 1 ? `, ${it.times} times` : ''}.` : '';
+      return `The mark above the enemy is its next move.${hitText} It always shows you what is coming.`;
+    } },
+    { at: '.breath', text: () => 'These lamps are your breath. You get 3 every turn. Each card costs breath: the number in its corner.' },
+    { at: '.hand', text: () => 'Tap a card to lift it. Tap it again, or tap the enemy, to play it. Try one now.', wait: 'play' },
+    { at: '.you-stats', text: () => 'Your health is the green bar. Guard and cards like it give block, which soaks up damage until your next turn.' },
+    { at: '#end', text: () => 'When your lamps are out, or you are done, press End turn. The enemy acts, then you draw a fresh hand.', wait: 'end' },
+    { at: '.ground-line', text: () => `Each house has its own ground that changes the fight. Play cards of two planets in one turn and they may form a yoga. Tap any small badge to see what it means.` },
+  ];
+  let stepIdx = getSettings().guideDone ? -1 : 0;
+  const coach = document.createElement('div');
+  coach.className = 'coach';
+  coach.innerHTML = `<div class="coach-ring"></div><div class="coach-box" role="dialog" aria-live="polite" aria-label="Fight guide">
+      <p class="coach-text"></p>
+      <div class="coach-actions"><button class="link" id="coachSkip">Skip the guide</button><button class="ghost" id="coachNext">Next</button></div>
+    </div>`;
+  const endGuide = () => { stepIdx = -1; coach.remove(); setSetting('guideDone', true); };
+  function showStep() {
+    if (stepIdx < 0) return;
+    if (stepIdx >= steps.length) { endGuide(); return; }
+    const st = steps[stepIdx], el = root.querySelector<HTMLElement>(st.at);
+    if (!el) { stepIdx++; showStep(); return; }
+    if (!coach.isConnected) fightEl.appendChild(coach);
+    const r = el.getBoundingClientRect(), box = fightEl.getBoundingClientRect(), pad = 8;
+    const ring = coach.querySelector<HTMLElement>('.coach-ring')!;
+    Object.assign(ring.style, { left: `${r.left - box.left - pad}px`, top: `${r.top - box.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+    const bubble = coach.querySelector<HTMLElement>('.coach-box')!;
+    const below = r.top - box.top < box.height / 2;
+    bubble.style.top = below ? `${r.bottom - box.top + 16}px` : '';
+    bubble.style.bottom = below ? '' : `${box.bottom - r.top + 16}px`;
+    coach.querySelector('.coach-text')!.textContent = st.text();
+    const next = coach.querySelector<HTMLButtonElement>('#coachNext')!;
+    next.hidden = !!st.wait;
+    next.textContent = stepIdx === steps.length - 1 ? 'Start' : 'Next';
+    coach.classList.toggle('waiting', !!st.wait);
+  }
+  const guideOn = (what: 'play' | 'end') => {
+    if (stepIdx >= 0 && steps[stepIdx].wait === what) { stepIdx++; setTimeout(showStep, 200); }
+  };
+  coach.addEventListener('click', e => {
+    const id = (e.target as HTMLElement).id;
+    if (id === 'coachNext') { stepIdx++; showStep(); }
+    if (id === 'coachSkip') endGuide();
+  });
+  window.addEventListener('resize', () => showStep());
 
   /* ---------- begin ---------- */
   busy = true;
@@ -401,9 +470,10 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
   void (async () => {
     await banner('Your turn');
     const draw = opening.find(e => e.t === 'draw');
-    if (draw) drawHand(true);
+    if (draw || state.hand.length) drawHand(true);
     busy = false;
     drawPiles();
     window.scrollTo(0, 0);
+    if (stepIdx >= 0) setTimeout(showStep, 500);
   })();
 }

@@ -14,7 +14,9 @@ import { ENEMIES, GROUND, KIND_NAME, REMEDY, REST_GIFT, TRANSIT_LINE } from './c
 import { moonSvg, todaySky, type Sky } from './today';
 import { startStarlight } from './ambience';
 import { showFight } from './combatView';
-import { starterDeck } from './game/cards';
+import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
+import { getSettings, setSetting } from './settings';
+import { buzz } from './haptics';
 import type { Mods } from './game/combat';
 import { forgetBirth, loadBirth, saveBirth } from './store';
 
@@ -181,7 +183,7 @@ function skyStrip(sky: Sky): string {
       <p>${sky.effect}</p>
       <small>${Math.round(sky.lit * 100)}% lit, ${sky.elong < 180 ? 'growing' : 'shrinking'}</small>
     </div>
-    ${notes ? `<div class="sky-notes">${notes}</div>` : ''}
+    ${notes || sky.blessing ? `<div class="sky-notes">${notes}${sky.blessing ? `<p class="sky-note"><b>Blessing of <span class="pl-${sky.blessing.toLowerCase()}">${sky.blessing}</span>.</b> In a good place for your Moon today, it lends you ${CARDS[GIFT_CARD[sky.blessing]].name} in every fight.</p>` : ''}</div>` : ''}
     <details class="remedy" id="remedy">
       <summary><span>Today's remedy, for <span class="pl-${sky.pressing.toLowerCase()}">${sky.pressing}</span></span></summary>
       <p class="mantra">${rem.mantra}</p>
@@ -230,10 +232,18 @@ function showChart(r: Reading) {
     <footer class="actions">
       <p class="born">Born ${esc(local)}${r.timeKnown ? '' : ' (time unknown)'}, ${esc(placeLabel(r.birth.place))}, ${r.offset}</p>
       <button class="ghost" id="edit">Change my birth</button>
+      <div class="settings">
+        <label class="switch"><input type="checkbox" id="vibe" ${getSettings().vibration ? 'checked' : ''} /> <span>Vibration</span></label>
+        <button class="link" id="vibeTest">Test it</button>
+        <button class="link" id="guideAgain">Show the fight guide again</button>
+      </div>
       <button class="link" id="forget">Forget my birth on this phone</button>
     </footer>
   </main>`;
 
+  document.getElementById('vibe')!.addEventListener('change', e => setSetting('vibration', (e.target as HTMLInputElement).checked));
+  document.getElementById('vibeTest')!.addEventListener('click', () => buzz('win', true));
+  document.getElementById('guideAgain')!.addEventListener('click', e => { setSetting('guideDone', false); (e.target as HTMLElement).textContent = 'The guide will show in your next fight'; });
   const map = document.getElementById('map')!, panel = document.getElementById('panel')!, legend = document.getElementById('legend')!;
   const draw = (cast = false) => {
     map.innerHTML = chartSvg(r, { current: mode === 'birth' ? current : undefined, selected, cast, sky: mode === 'sky' ? sky.transits : undefined });
@@ -290,13 +300,15 @@ function fightMods(sky: Sky): { mods: Mods; maxHpBonus: number; note?: string } 
 }
 
 function startPractice(r: Reading, sky: Sky) {
-  const h = r.houses[0], fm = fightMods(sky), maxHp = 60 + fm.maxHpBonus;
+  const h = r.houses[0], fm = fightMods(sky), maxHp = 60 + fm.maxHpBonus + (r.cls.ruler === 'Sun' ? 8 : 0);
   showFight(app, {
     title: `${ordinal(1)} house, ${h.signName}`,
     deck: starterDeck(r.cls.ruler),
     enemies: ['shade'],
     ground: h.element as 'fire' | 'earth' | 'air' | 'water',
-    seed: r.seed, run: 0, hp: maxHp, maxHp, mods: fm.mods, modNote: fm.note,
+    seed: r.seed, run: 0, hp: maxHp, maxHp,
+    mods: { ...fm.mods, cls: r.cls.ruler, giftCard: sky.blessing ? GIFT_CARD[sky.blessing] : undefined },
+    modNote: fm.note, giftFrom: sky.blessing ?? undefined,
   }, () => showChart(r));
 }
 

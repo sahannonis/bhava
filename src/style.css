@@ -543,3 +543,40 @@ body::after {
   *, *::before, *::after { transition: none !important; animation: none !important; }
   .tip.show, .banner.show { opacity: 1; }
 }
+
+/* ---------- Day 4: yogas, lent cards, the guide, settings ---------- */
+.yoga {
+  position: absolute; left: var(--gutter); right: var(--gutter); top: 34%;
+  z-index: 45; pointer-events: none; text-align: center;
+  padding: 14px 12px 16px;
+  background: radial-gradient(closest-side, rgba(246, 236, 202, 1) 55%, rgba(255, 226, 160, 0.85) 80%, transparent);
+  animation: yoga-in 1.5s ease-out forwards;
+}
+.yoga-name { font: 400 1.7rem var(--display); color: var(--soot); text-shadow: 0 0 18px rgba(255, 190, 60, 1), 0 0 2px #fff6d8; }
+.yoga-meaning { font-size: 0.95rem; color: var(--soot); margin-top: 4px; }
+@keyframes yoga-in { 0% { opacity: 0; transform: scale(0.85); } 15% { opacity: 1; transform: scale(1.04); } 25% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+
+.card.lent { border-color: #b8860b; box-shadow: 0 0 0 1.5px #ffd36e, 0 0 16px rgba(255, 200, 90, 0.7), 0 6px 14px rgba(36, 30, 21, 0.18); }
+.lent-tag { position: absolute; left: 6px; bottom: 7px; right: 30px; font-size: 0.62rem; font-style: italic; color: #7a5a10; line-height: 1.1; }
+
+.coach { position: absolute; inset: 0; z-index: 55; pointer-events: none; }
+.coach-ring {
+  position: absolute; border-radius: 10px;
+  box-shadow: 0 0 0 200vmax rgba(36, 30, 21, 0.55), 0 0 0 2px #ffd36e, 0 0 24px rgba(255, 200, 90, 0.9);
+  transition: left 250ms ease, top 250ms ease, width 250ms ease, height 250ms ease;
+}
+.coach-box {
+  position: absolute; left: var(--gutter); right: var(--gutter);
+  padding: 14px 16px; border-radius: 6px; pointer-events: auto;
+  background: linear-gradient(#f3e8c4, #e6d6a6); border: 1.5px solid var(--soot);
+  box-shadow: 0 8px 24px rgba(36, 30, 21, 0.35);
+}
+.coach-text { font-size: 1rem; line-height: 1.45; }
+.coach-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 12px; }
+.coach-actions .ghost { min-height: 42px; }
+.coach.waiting .coach-ring { animation: beckon 1.4s ease-in-out infinite; }
+@keyframes beckon { 50% { box-shadow: 0 0 0 200vmax rgba(36, 30, 21, 0.55), 0 0 0 3px #ffd36e, 0 0 36px rgba(255, 200, 90, 1); } }
+
+.settings { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 18px; margin-top: 6px; font-size: 0.95rem; }
+.switch { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; cursor: pointer; }
+.switch input { width: 20px; height: 20px; min-height: 0; accent-color: var(--soot); -webkit-appearance: auto; appearance: auto; }

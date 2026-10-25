@@ -19,6 +19,7 @@ export type Sky = {
   chandrashtama: boolean;              // Moon 8th from the birth Moon
   sadeSati: 'rising' | 'peak' | 'setting' | null; // Saturn 12th, 1st or 2nd from it
   pressing: string;                    // the planet whose remedy fits today
+  blessing: string | null;             // the heaviest planet in a good place: it lends a card in every fight today
 };
 
 const signOf = (r: Reading, n: number) => E.SIGNS[n].en;
@@ -39,6 +40,7 @@ export function todaySky(r: Reading, now = new Date()): Sky {
   const moon = transits.find(t => t.name === 'Moon')!;
   const saturn = transits.find(t => t.name === 'Saturn')!;
   const hard = transits.filter(t => !t.good).sort((a, b) => PRESS[b.name] - PRESS[a.name]);
+  const good = transits.filter(t => t.good).sort((a, b) => PRESS[b.name] - PRESS[a.name]);
   const chandrashtama = moon.fromMoon === 8;
 
   const dayKey = `${noon.getFullYear()}-${String(noon.getMonth() + 1).padStart(2, '0')}-${String(noon.getDate()).padStart(2, '0')}`;
@@ -55,6 +57,7 @@ export function todaySky(r: Reading, now = new Date()): Sky {
     sadeSati: saturn.fromMoon === 12 ? 'rising' : saturn.fromMoon === 1 ? 'peak' : saturn.fromMoon === 2 ? 'setting' : null,
     // Chandrashtama asks for the Moon's remedy; otherwise the heaviest planet in a hard place
     pressing: chandrashtama ? 'Moon' : hard.length ? hard[0].name : 'Moon',
+    blessing: good.length ? good[0].name : null,
   };
 }
 

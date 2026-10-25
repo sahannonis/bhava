@@ -71,8 +71,12 @@ with sync_playwright() as p:
     pg.click('#enter'); pg.wait_for_function("document.querySelector('.fight .card') && !document.getElementById('end').disabled", timeout=10000)
     assert pg.inner_text('.fight-where') == '1st house, Pisces'
     assert 'Healing tide' in pg.inner_text('.ground-line')
+    pg.wait_for_timeout(1200)  # let the hand finish being dealt
+    assert pg.locator('.coach-box').count() == 1  # the guide opens on the first fight
+    pg.click('#coachSkip')
     strike = pg.locator('.card', has_text='Strike').first
-    strike.tap(); pg.locator('.card.picked').tap()
+    strike.tap(position={'x': 18, 'y': 70})  # cards overlap: tap the visible edge
+    pg.locator('.card.picked').tap()
     pg.wait_for_function("document.querySelector('.foe .hp-num').textContent.startsWith('36 /')", timeout=10000)
     pg.wait_for_function("!document.getElementById('end').disabled", timeout=10000)
     pg.click('#end')

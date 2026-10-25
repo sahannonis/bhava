@@ -7,13 +7,13 @@ export type Birth = { date: string; time: string | null; place: Place };
 
 export type ClassInfo = { ruler: string; name: string; style: string };
 export const CLASSES: Record<string, ClassInfo> = {
-  Sun: { ruler: 'Sun', name: 'The Radiant', style: 'High health; your cards grow stronger each turn.' },
-  Moon: { ruler: 'Moon', name: 'The Tide', style: 'Heals, and your cards change with the turn count.' },
-  Mars: { ruler: 'Mars', name: 'The Blade', style: 'Fast attacks; takes damage to deal more.' },
-  Mercury: { ruler: 'Mercury', name: 'The Weaver', style: 'Draws more cards and strings cheap combos.' },
-  Jupiter: { ruler: 'Jupiter', name: 'The Sage', style: 'Shields and blessings that keep growing.' },
-  Venus: { ruler: 'Venus', name: 'The Charmer', style: 'Charm makes enemies skip turns or weaken.' },
-  Saturn: { ruler: 'Saturn', name: 'The Ascetic', style: 'Slow start, very strong late in a fight.' },
+  Sun: { ruler: 'Sun', name: 'The Radiant', style: '8 more health, and 1 more might every third turn.' },
+  Moon: { ruler: 'Moon', name: 'The Tide', style: 'Heal 2 at the end of each of your turns.' },
+  Mars: { ruler: 'Mars', name: 'The Blade', style: 'Start every fight with 1 might.' },
+  Mercury: { ruler: 'Mercury', name: 'The Weaver', style: 'Draw 6 cards a turn instead of 5.' },
+  Jupiter: { ruler: 'Jupiter', name: 'The Sage', style: 'Start every fight with 8 block.' },
+  Venus: { ruler: 'Venus', name: 'The Charmer', style: 'Every enemy starts the fight weak.' },
+  Saturn: { ruler: 'Saturn', name: 'The Ascetic', style: 'From the fourth turn on, 4 breath a turn instead of 3.' },
 };
 
 export type Strength = 'strong' | 'normal' | 'weak';
