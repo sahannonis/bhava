@@ -72,7 +72,7 @@ const fighter = (s: CombatState, w: Who): Fighter => (w === 'player' ? s.player 
 /* ---------- start ---------- */
 export type StartOptions = {
   deck: string[];
-  enemies: string[];
+  enemies: (string | EnemyDef)[];
   ground: Element;
   seed: number;
   run: number;
@@ -87,11 +87,11 @@ export function startCombat(o: StartOptions): { state: CombatState; events: Comb
   const mods = o.mods ?? {};
   let uid = 1;
   const cards = rng.shuffle(o.deck).map(id => ({ uid: uid++, id }));
-  const enemies: EnemyState[] = o.enemies.map(id => {
-    const def = ENEMY_DEFS[id];
+  const enemies: EnemyState[] = o.enemies.map(e => {
+    const def = typeof e === 'string' ? ENEMY_DEFS[e] : e;
     const hp = Math.round(def.hp * (mods.enemyHpMult ?? 1));
-    const start = def.order === 'cycle' ? rng.int(0, def.moves.length - 1) : rng.int(0, def.moves.length - 1);
-    return { def, name: def.name, hp, maxHp: hp, block: 0, status: {}, moveIdx: start, history: [start], attackedThisTurn: false };
+    const start = rng.int(0, def.moves.length - 1);
+    return { def, name: def.name, hp, maxHp: hp, block: 0, status: def.might ? { might: def.might } : {}, moveIdx: start, history: [start], attackedThisTurn: false };
   });
   const state: CombatState = {
     turn: 0, phase: 'player', ground: o.ground,
@@ -154,6 +154,8 @@ export type Intent =
   | { kind: 'block'; amount: number }
   | { kind: 'buff'; status: StatusId; amount: number }
   | { kind: 'debuff'; status: StatusId; amount: number }
+  | { kind: 'heal'; amount: number }
+  | { kind: 'cleanse' }
   | { kind: 'skip' };
 
 /* What an enemy will do next, worked out as the player would feel it. */
@@ -163,6 +165,8 @@ export function intentOf(s: CombatState, idx: number): Intent[] {
   return enemyMove(e).actions.map((a): Intent => {
     if (a.kind === 'attack') return { kind: 'attack', each: attackDamage(s, idx, 'player', a.amount), times: a.times ?? 1 };
     if (a.kind === 'block') return { kind: 'block', amount: a.amount };
+    if (a.kind === 'heal') return { kind: 'heal', amount: a.amount };
+    if (a.kind === 'cleanse') return { kind: 'cleanse' };
     return a.to === 'self' ? { kind: 'buff', status: a.status, amount: a.amount } : { kind: 'debuff', status: a.status, amount: a.amount };
   });
 }
@@ -347,6 +351,8 @@ function enemyAct(s: CombatState, i: number, a: EnemyAction, events: CombatEvent
       if (s.phase !== 'player') return;
     }
   } else if (a.kind === 'block') gainBlock(s, i, a.amount, events);
+  else if (a.kind === 'heal') heal(s, i, a.amount, events);
+  else if (a.kind === 'cleanse') { for (const k of ['burn', 'weak', 'exposed'] as const) delete s.enemies[i].status[k]; }
   else addStatus(s, a.to === 'self' ? i : 'player', a.status, a.amount, events);
 }
 

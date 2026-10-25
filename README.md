@@ -40,14 +40,16 @@ npm run build:preview   # one self-contained page in preview/
 | `src/today.ts` | Today's sky: the real planets now, counted from your birth Moon (gochara), with Chandrashtama, Sade Sati, the day's remedy and the Moon's phase. |
 | `src/rng.ts` | Seeded randomness from the birth seed and run number. |
 | `src/ambience.ts` | The twinkling gold starlight behind the pages. |
-| `src/game/` | The fight rules with no screen: `cards.ts` (37 cards, class decks, statuses), `yogas.ts` (nine yogas formed by two planets' cards in one turn), `enemies.ts` (enemies and their moves), `combat.ts` (turns, breath, drawing, damage, block, burn, weak, exposed, might, charm, the four grounds). |
+| `src/game/` | The fight rules with no screen: `cards.ts` (37 cards, class decks, statuses), `yogas.ts` (nine yogas formed by two planets' cards in one turn), `enemies.ts` (the nine planets, eight lesser spirits, conjunction bosses, the gate shade, scaling by house), `run.ts` (each house as a chapter of steps, and walking a run), `combat.ts` (turns, breath, drawing, damage, block, burn, weak, exposed, might, charm, the four grounds). |
 | `src/combatView.ts` | The fight screen: the hand, intents, lamps for breath, the first-fight guide, yoga banners, and the playback of hits, numbers, ink splats and shakes. |
 | `src/haptics.ts` | Phone vibration, with an off switch. |
 | `src/settings.ts` | Player settings kept on the phone (vibration, fight guide). |
+| `src/runView.ts` | The run pages: house openings, story and rest steps, cleared houses, the end of a run. |
+| `src/runStore.ts` | The run in progress and the houses ever cleared, kept on the phone. |
 | `src/main.ts` | The birth and map screens. |
 | `capacitor.config.json` | App id and name for Android (JSON, so it works with any TypeScript or Node version). |
 | `src/store.ts` | Saving on the phone only. |
-| `tests/` | `engine.test.cjs` (a known chart, old Sri Lankan time), `rng.test.ts` (seeded randomness), `combat.test.ts` (fight rules, plus a bot that must win with every class on every ground) and `screens.py` (phone-sized screen checks with Playwright). |
+| `tests/` | `engine.test.cjs` (a known chart, old Sri Lankan time), `rng.test.ts` (seeded randomness), `combat.test.ts` (fight rules, plus a bot that must win with every class on every ground), `run.test.ts` (house chapters for 200 made-up charts, and how far a bot gets with the starting deck) and `screens.py` (phone-sized screen checks with Playwright). |
 
 ## Rules
 
@@ -61,3 +63,4 @@ npm run build:preview   # one self-contained page in preview/
 - **Day 2 (25 Oct 2026):** the chart is now the run map: ink hatching shows fights, bosses and the final gate, a dotted red line shows where you stand, and tapping a house shows its ground, its enemies or its rest-place gift. Today's Moon modifier and real Moon phase, seeded randomness, Latin-only fonts. Lamplight and twinkling gold starlight on the leaf, a slowly turning star wheel behind the title, the chart drawn in ink as it opens, planets that rise and glow in their own colours, a lit chosen house and walking red dots where you stand. Today's sky: a Birth chart / Today's sky switch on the map, transits counted from the birth Moon with good and hard places, Chandrashtama and Sade Sati notes, and one free remedy a day (mantra, a small act, a practice).
 - **Day 3 (25 Oct 2026):** the combat core. Turn-based card fights for touch: a hand of 5, 3 breath shown as clay lamps, tap a card then tap again or tap the enemy, enemy intents that show the damage you will really take, block, burn, weak, exposed, might and charm, and the ground rules of each element. Each class starts with its signature card. Hits land with a short freeze, an ink splat, a shake, a rising number and a phone vibration. A practice fight on your 1st house's ground, with today's Moon effect, can be won or lost.
 - **Day 4 (25 Oct 2026):** 37 cards across the nine planets, an 11-card starting deck and a trait for each class, nine yogas, and today's best-placed planet lending a card in every fight. A guide on the first fight. Vibration reworked to play at the phone's default strength, with an on/off switch and a test button on the map.
+- **Day 5 (25 Oct 2026):** the nine planet enemies, two lesser spirits per element, conjunction bosses built from a house's planets, and the final gate (a shade of your lagna lord when the 12th is empty). Enemies grow by house number and by planet strength; today's pressing planet hits 1 harder. Each house is a chapter: an opening about what it rules, then its steps. A full run plays from the 1st house to the 12th, with health and prana carried between fights, saved after every step, and cleared houses kept and shown on the chart.

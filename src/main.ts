@@ -17,6 +17,9 @@ import { showFight } from './combatView';
 import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
 import { getSettings, setSetting } from './settings';
 import { buzz } from './haptics';
+import { loadRun, saveRun, nextRunNumber, endRun, loadCleared } from './runStore';
+import { newRun, houseSteps, STEP_NAME, type RunState } from './game/run';
+import { continueRun } from './runView';
 import type { Mods } from './game/combat';
 import { forgetBirth, loadBirth, saveBirth } from './store';
 
@@ -205,7 +208,9 @@ function showChart(r: Reading) {
   }).format(new Date(r.utc));
   const lagnaName = r.houses[0].signName;
   const sky = todaySky(r);
-  const current = 1;
+  const run = loadRun();
+  const cleared = loadCleared();
+  const current = run ? run.house : 1;
   let selected = current;
   let mode: 'birth' | 'sky' = 'birth';
 
@@ -222,12 +227,18 @@ function showChart(r: Reading) {
       <button type="button" class="mode" id="modeBirth" aria-pressed="true">Birth chart</button>
       <button type="button" class="mode" id="modeSky" aria-pressed="false">Today's sky</button>
     </div>
-    <figure class="chart-wrap" id="map">${chartSvg(r, { current, selected, cast: true })}</figure>
+    <figure class="chart-wrap" id="map">${chartSvg(r, { current, selected, cast: true, cleared })}</figure>
     <ul class="legend" id="legend" aria-label="What the ink means">${LEGEND_BIRTH}</ul>
     <section class="panel" id="panel" aria-live="polite">${housePanel(r, selected, current)}</section>
     <div class="enter">
-      <button class="primary" id="enter">Practice fight</button>
-      <small>A test fight on the ground of your ${ordinal(current)} house. Runs through all twelve come in the next builds.</small>
+      ${run ? `<button class="primary" id="begin">Continue in the ${ordinal(run.house)} house</button>
+        <small>${run.hp} of ${run.maxHp} health · ${run.prana} prana · next: ${STEP_NAME[houseSteps(r, run, run.house)[run.step].kind].toLowerCase()}</small>`
+        : `<button class="primary" id="begin">Begin your run</button>
+        <small>Walk your twelve houses in order, from the self to release.${cleared.length ? ` Cleared so far: ${cleared.length} of 12.` : ''}</small>`}
+      <div class="enter-more">
+        <button class="link" id="enter">Practice fight</button>
+        ${run ? '<button class="link" id="giveUp">Give up this run</button>' : ''}
+      </div>
     </div>
     <footer class="actions">
       <p class="born">Born ${esc(local)}${r.timeKnown ? '' : ' (time unknown)'}, ${esc(placeLabel(r.birth.place))}, ${r.offset}</p>
@@ -246,7 +257,7 @@ function showChart(r: Reading) {
   document.getElementById('guideAgain')!.addEventListener('click', e => { setSetting('guideDone', false); (e.target as HTMLElement).textContent = 'The guide will show in your next fight'; });
   const map = document.getElementById('map')!, panel = document.getElementById('panel')!, legend = document.getElementById('legend')!;
   const draw = (cast = false) => {
-    map.innerHTML = chartSvg(r, { current: mode === 'birth' ? current : undefined, selected, cast, sky: mode === 'sky' ? sky.transits : undefined });
+    map.innerHTML = chartSvg(r, { current: mode === 'birth' ? current : undefined, selected, cast, cleared, sky: mode === 'sky' ? sky.transits : undefined });
     panel.innerHTML = mode === 'sky' ? skyPanel(r, selected, sky) : housePanel(r, selected, current);
     panel.classList.remove('turn'); void panel.offsetWidth; panel.classList.add('turn');
   };
@@ -282,6 +293,11 @@ function showChart(r: Reading) {
   document.getElementById('edit')!.addEventListener('click', () => showBirth(r.birth));
   document.getElementById('forget')!.addEventListener('click', async () => { await forgetBirth(); showBirth(null); });
   document.getElementById('enter')!.addEventListener('click', () => startPractice(r, sky));
+  document.getElementById('begin')!.addEventListener('click', () => beginOrContinue(r, sky, run));
+  document.getElementById('giveUp')?.addEventListener('click', e => {
+    const b = e.target as HTMLButtonElement;
+    if (b.dataset.sure) { endRun(); showChart(r); } else { b.dataset.sure = '1'; b.textContent = 'Tap again to give up the run'; }
+  });
   window.scrollTo(0, 0);
 }
 
@@ -297,6 +313,16 @@ function fightMods(sky: Sky): { mods: Mods; maxHpBonus: number; note?: string } 
     case 12: return { mods: {}, maxHpBonus: -5, note };
     default: return { mods: {}, maxHpBonus: 0 };
   }
+}
+
+function beginOrContinue(r: Reading, sky: Sky, existing: RunState | null) {
+  const fm = fightMods(sky);
+  const run = existing ?? newRun(r, nextRunNumber(), { maxHpBonus: fm.maxHpBonus, pressing: sky.pressing });
+  saveRun(run);
+  continueRun(app, {
+    reading: r, run, mods: { ...fm.mods, cls: r.cls.ruler }, modNote: fm.note,
+    blessing: sky.blessing, back: () => showChart(r),
+  });
 }
 
 function startPractice(r: Reading, sky: Sky) {

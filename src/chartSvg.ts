@@ -37,6 +37,7 @@ const DEFS = `<defs>
 
 export type MapState = {
   current?: number; selected?: number; cast?: boolean;
+  cleared?: number[]; // houses cleared in any run: they take their colour back
   sky?: Transit[]; // when set, today's planets are drawn instead of the birth planets
 };
 
@@ -64,10 +65,10 @@ export function chartSvg(r: Reading, state: MapState = {}): string {
     }).join('');
     const lagna = h.n === 1 ? `<text class="lagna-word" x="200" y="160" text-anchor="middle">lagna</text>` : '';
     const hatch = h.kind === 'rest' ? '' : `<polygon class="hatch" points="${SHAPES[h.n]}" fill="url(#hatch-${h.kind})" />`;
-    const cls = ['house', `kind-${h.kind}`, state.current === h.n ? 'is-current' : '', state.selected === h.n ? 'is-selected' : ''].filter(Boolean).join(' ');
+    const cls = ['house', `kind-${h.kind}`, state.cleared?.includes(h.n) ? 'is-cleared' : '', state.current === h.n ? 'is-current' : '', state.selected === h.n ? 'is-selected' : ''].filter(Boolean).join(' ');
     const what = h.kind === 'rest' ? 'rest place' : h.kind === 'gate' ? 'final gate' : h.kind;
     return `<g class="${cls}" data-house="${h.n}" role="button" tabindex="0" aria-pressed="${state.selected === h.n}" aria-label="${h.n}${['st', 'nd', 'rd'][h.n - 1] || 'th'} house, ${h.signName}, ${what}${shown.length ? `: ${state.sky ? 'today ' : ''}${shown.map(p => p.name).join(', ')}` : ''}">
-      ${hatch}<polygon class="hit" points="${SHAPES[h.n]}" />${state.selected === h.n ? `<polygon class="lit" points="${SHAPES[h.n]}" fill="url(#lamp-on-house)" />` : ''}
+      ${state.cleared?.includes(h.n) ? `<polygon class="cleared-fill" points="${SHAPES[h.n]}" />` : ''}${hatch}<polygon class="hit" points="${SHAPES[h.n]}" />${state.selected === h.n ? `<polygon class="lit" points="${SHAPES[h.n]}" fill="url(#lamp-on-house)" />` : ''}
       <text class="sign-no" x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central">${h.sign + 1}</text>${lagna}${names}
     </g>`;
   }).join('');

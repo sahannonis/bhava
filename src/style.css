@@ -312,7 +312,7 @@ body::after {
   .chart.cast .cut { stroke-dasharray: 3830 3830; stroke-dashoffset: 3830; /* the grid's full length */ animation: ink-draw 1.5s cubic-bezier(0.55, 0.05, 0.3, 1) 0.15s forwards; }
   @keyframes ink-draw { to { stroke-dashoffset: 0; } }
   .chart.cast .cut-light { opacity: 0; animation: fade-in 0.6s ease 1.4s forwards; }
-  .chart.cast .hatch { opacity: 0; animation: fade-in 0.9s ease 1.2s forwards; }
+  .chart.cast .hatch, .chart.cast .cleared-fill { opacity: 0; animation: fade-in 0.9s ease 1.2s forwards; }
   .chart.cast .sign-no, .chart.cast .lagna-word { opacity: 0; animation: fade-in 0.6s ease 1.25s forwards; }
   .chart.cast .pl-g { opacity: 0; transform: scale(0.5); animation: rise 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.35) var(--rise) forwards; }
   @keyframes rise { to { opacity: 1; transform: scale(1); } }
@@ -580,3 +580,30 @@ body::after {
 .settings { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 18px; margin-top: 6px; font-size: 0.95rem; }
 .switch { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; cursor: pointer; }
 .switch input { width: 20px; height: 20px; min-height: 0; accent-color: var(--soot); -webkit-appearance: auto; appearance: auto; }
+
+/* ---------- Day 5: runs and house chapters ---------- */
+.chart .cleared-fill { fill: rgba(255, 214, 120, 0.28); pointer-events: none; }
+.chart .is-cleared .pl-glow { opacity: 0.95; }
+.enter-more { display: flex; justify-content: center; gap: 20px; margin-top: 6px; }
+.enter-more .link { justify-self: auto; }
+
+.run-page { display: grid; gap: 14px; align-content: start; min-height: 100dvh; }
+.house-title { font-size: clamp(2.2rem, 10vw, 3rem); line-height: 1.05; }
+.house-title.glow { text-shadow: 0 1.2px 0 var(--cut-light), 0 0 26px rgba(255, 200, 90, 0.9); }
+.opening { font-size: 1.15rem; }
+.run-page .ground { color: var(--soot-soft); }
+.steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 0; counter-reset: step; }
+.steps li { display: grid; grid-template-columns: 30px 1fr; align-items: baseline; padding: 10px 0; border-top: 1.5px solid rgba(36, 30, 21, 0.3); box-shadow: inset 0 1.2px 0 var(--cut-light); counter-increment: step; }
+.steps li::before { content: counter(step); font-family: var(--display); color: var(--soot-soft); }
+.steps li span { font-family: var(--display); font-size: 1.1rem; }
+.steps li small { grid-column: 2; margin: 0; }
+.steps li.now span { text-shadow: 0 0 14px rgba(255, 200, 90, 0.9); }
+.steps li.done { opacity: 0.55; }
+.run-stats { font-size: 0.95rem; color: var(--soot-soft); font-variant-numeric: tabular-nums; }
+.run-actions { display: grid; gap: 10px; margin-top: 10px; justify-items: stretch; }
+.run-actions .link { justify-self: center; }
+.foe.big .foe-figure svg { width: clamp(130px, 38vw, 170px); }
+.tint-sun .eye { fill: #ffd56a; } .tint-moon .eye { fill: #e6f0ff; } .tint-mars .eye { fill: #ff8a5c; }
+.tint-mercury .eye { fill: #9be8b0; } .tint-jupiter .eye { fill: #ffc06a; } .tint-venus .eye { fill: #ffb3dc; }
+.tint-saturn .eye { fill: #a8b8ff; } .tint-rahu .eye { fill: #c9b0ff; } .tint-ketu .eye { fill: #f0c08e; }
+.tint-fire .eye { fill: #ffa25c; } .tint-earth .eye { fill: #e8cf98; } .tint-air .eye { fill: #d6ecff; } .tint-water .eye { fill: #9fe0e0; }

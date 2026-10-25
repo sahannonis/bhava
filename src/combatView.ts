@@ -10,11 +10,15 @@ import {
   type CombatEvent, type Element as Ground, type Intent, type Mods, type Who,
 } from './game/combat';
 import { GROUND } from './content';
+import type { EnemyDef } from './game/enemies';
 
 export type FightSetup = {
   title: string;          // e.g. "1st house, Pisces"
   deck: string[];
-  enemies: string[];
+  enemies: (string | EnemyDef)[];
+  fight?: number;         // which fight of the run
+  mode?: 'practice' | 'run';
+  reward?: number;        // prana for winning, in a run
   ground: Ground;
   seed: number;
   run: number;
@@ -57,7 +61,7 @@ const SPLAT = 'M50 8 C58 22 74 10 70 30 C88 28 92 46 76 52 C92 64 78 82 62 72 C6
 export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightResult) => void): void {
   const { state, events: opening } = startCombat({
     deck: setup.deck, enemies: setup.enemies, ground: setup.ground,
-    seed: setup.seed, run: setup.run, hp: setup.hp, maxHp: setup.maxHp, mods: setup.mods,
+    seed: setup.seed, run: setup.run, fight: setup.fight, hp: setup.hp, maxHp: setup.maxHp, mods: setup.mods,
   });
   const g = GROUND[setup.ground];
   let selected: number | null = null; // index in hand
@@ -103,19 +107,23 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
       case 'buff': return `<span class="intent buff">${ICON.rise}<b>${STATUS_INFO[it.status].name}</b></span>`;
       case 'debuff': return `<span class="intent debuff">${ICON.fall}<b>${STATUS_INFO[it.status].name}</b></span>`;
       case 'skip': return `<span class="intent skip">${ICON.sleep}<b>Charmed</b></span>`;
+      case 'heal': return `<span class="intent heal">${ICON.rise}<b>Heal ${it.amount}</b></span>`;
+      case 'cleanse': return `<span class="intent buff">${ICON.rise}<b>Clears</b></span>`;
     }
   }).join('');
 
   const intentWords = (list: Intent[]) => list.map(it =>
     it.kind === 'attack' ? `attack for ${it.each}${it.times > 1 ? `, ${it.times} times` : ''}`
       : it.kind === 'block' ? `guard for ${it.amount}` : it.kind === 'skip' ? 'skip its turn'
-        : `${it.kind === 'buff' ? 'gain' : 'give you'} ${STATUS_INFO[it.status].name.toLowerCase()}`).join(', then ');
+        : it.kind === 'heal' ? `heal ${it.amount}` : it.kind === 'cleanse' ? 'clear its burn, weak and exposed'
+          : `${it.kind === 'buff' ? 'gain' : 'give you'} ${STATUS_INFO[it.status].name.toLowerCase()}`).join(', then ');
 
   function drawFoes() {
     $('foes').innerHTML = state.enemies.map((e, i) => {
       const dead = e.hp <= 0;
       const it = dead ? [] : intentOf(state, i);
-      return `<div class="foe${dead ? ' gone' : ''}${selected !== null && CARDS[state.hand[selected]?.id]?.target === 'enemy' && !dead ? ' aim' : ''}" data-foe="${i}"
+      const tint = e.def.planet ? `tint-${e.def.planet.toLowerCase()}` : e.def.element ? `tint-${e.def.element}` : '';
+      return `<div class="foe ${tint}${e.def.rank === 'boss' || e.def.rank === 'gate' ? ' big' : ''}${dead ? ' gone' : ''}${selected !== null && CARDS[state.hand[selected]?.id]?.target === 'enemy' && !dead ? ' aim' : ''}" data-foe="${i}"
           role="button" tabindex="0" aria-label="${esc(e.name)}, ${e.hp} of ${e.maxHp} health${e.block ? `, ${e.block} block` : ''}. Next it will ${intentWords(it)}.">
         <div class="intents">${intentHtml(it)}</div>
         <div class="foe-figure"><svg viewBox="0 0 120 120" aria-hidden="true">
@@ -339,20 +347,23 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     await sleep(400);
     const over = document.createElement('div');
     over.className = `over ${result}`;
+    const foe = state.enemies[0].name, run = setup.mode === 'run';
+    const left = `You have ${state.player.hp} of ${state.player.maxHp} health left.`;
+    const body = result === 'won'
+      ? `${esc(foe)} dissolves back into ink after ${state.turn} turn${state.turn > 1 ? 's' : ''}. ${left}${run && setup.reward ? ` You gather ${setup.reward} prana.` : ''}`
+      : run ? `${esc(foe)} stands over you. The run ends here, and the wheel turns again.` : `${esc(foe)} stands. In a run, this is where the wheel turns again.`;
     over.innerHTML = `<div class="over-card" role="dialog" aria-modal="true" aria-labelledby="overTitle">
-        <h2 id="overTitle">${result === 'won' ? 'The house is cleared' : 'You fall'}</h2>
-        <p>${result === 'won'
-          ? `The ${esc(state.enemies[0].name.toLowerCase())} dissolves back into ink after ${state.turn} turns. You have ${state.player.hp} of ${state.player.maxHp} health left.`
-          : `The ${esc(state.enemies[0].name.toLowerCase())} stands. In a run, this is where karma is kept and the wheel turns again.`}</p>
-        <p class="over-note">This is the practice fight. Runs, rewards and readings come in the next builds.</p>
+        <h2 id="overTitle">${result === 'won' ? (run ? 'Cleared' : 'The shade is cleared') : 'You fall'}</h2>
+        <p>${body}</p>
+        ${run ? '' : '<p class="over-note">This is the practice fight. Begin a run from your chart to walk the twelve houses.</p>'}
         <div class="over-actions">
-          <button class="primary" id="again">Fight again</button>
-          <button class="ghost" id="back">Back to your chart</button>
+          ${run ? `<button class="primary" id="back">${result === 'won' ? 'Continue' : 'Back to your chart'}</button>`
+            : '<button class="primary" id="again">Fight again</button><button class="ghost" id="back">Back to your chart</button>'}
         </div>
       </div>`;
     fightEl.appendChild(over);
-    (over.querySelector('#again') as HTMLButtonElement).focus();
-    over.querySelector('#again')!.addEventListener('click', () => showFight(root, setup, done));
+    (over.querySelector('.over-actions .primary') as HTMLButtonElement).focus();
+    over.querySelector('#again')?.addEventListener('click', () => showFight(root, setup, done));
     over.querySelector('#back')!.addEventListener('click', () => done({ result, hp: state.player.hp, turns: state.turn }));
   }
 

@@ -94,3 +94,21 @@ export const REMEDY: Record<string, { mantra: string; act: string; practice: str
   Rahu: { mantra: 'Om Rahave Namah', act: 'Give away something you don\'t need.', practice: 'Put your phone down for an hour.' },
   Ketu: { mantra: 'Om Ketave Namah', act: 'Feed a stray dog if you can.', practice: 'Sit quietly for a few minutes and let one old grudge go.' },
 };
+
+/* ---------- the houses as chapters of a life ---------- */
+
+/* What each house rules, opening its chapter of the run. */
+export const HOUSE_OPENING: { rules: string; text: string }[] = [
+  { rules: 'the self', text: 'The first house is your own body and the self you show the world. Here you meet what you were born as.' },
+  { rules: 'family and wealth', text: 'The second house holds what you keep: family, food, savings, and the words you speak.' },
+  { rules: 'courage and effort', text: 'The third house is courage and effort: your own hands, short journeys, brothers and sisters.' },
+  { rules: 'home and mother', text: 'The fourth house is home: your mother, the ground under you, the peace you return to.' },
+  { rules: 'creation and joy', text: 'The fifth house is what you create: children, ideas, joy, and merit carried from before.' },
+  { rules: 'struggle and service', text: 'The sixth house is struggle: enemies, illness, debts, and the daily work that wears them down.' },
+  { rules: 'partners', text: 'The seventh house is the other: partners, marriage, and everyone who stands across from you.' },
+  { rules: 'what is hidden', text: 'The eighth house is hidden: sudden change, secrets, inheritance, and what lies under the surface.' },
+  { rules: 'the path and fortune', text: 'The ninth house is your path: teachers, faith, fortune, and long journeys.' },
+  { rules: 'work in the world', text: 'The tenth house is your work in the world: what you do, and what you are known for.' },
+  { rules: 'gains and friends', text: 'The eleventh house is gain: friends, income, and the hopes that come true.' },
+  { rules: 'release', text: 'The twelfth house is release: loss, sleep, far lands, and letting go. Beyond it, the wheel turns.' },
+];
