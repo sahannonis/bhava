@@ -33,10 +33,11 @@ test('every house has a chapter, and the 12th always ends at the final gate', ()
       const steps = houseSteps(r, run, n), h = r.houses[n - 1];
       assert.ok(steps.length >= 2 && steps.length <= 4, `house ${n}`);
       if (n === 12) assert.equal(steps.at(-1)!.kind, 'gate');
-      else if (h.planets.length === 0) assert.deepEqual(steps.map(s => s.kind), ['story', 'rest']);
+      else if (h.planets.length === 0) assert.deepEqual(steps.map(s => s.kind), ['lesser', 'story', 'rest']);
       else if (h.planets.length === 1) assert.deepEqual(steps.map(s => s.kind), ['lesser', 'story', 'planet']);
       else assert.deepEqual(steps.map(s => s.kind), ['lesser', 'story', 'lesser', 'boss']);
-      for (const s of steps) if (s.kind !== 'story' && s.kind !== 'rest') assert.ok(s.enemy && s.enemy.hp > 0 && s.enemy.moves.length > 0);
+      for (const s of steps) if (s.kind !== 'story' && s.kind !== 'rest') assert.ok(s.enemies?.length && s.enemies.every(e => e.hp > 0 && e.moves.length > 0));
+      for (const s of steps) if (s.kind === 'lesser') assert.equal(s.enemies!.length, n >= 5 ? 2 : 1, `lesser spirits pair up from the 5th house (house ${n})`);
     }
   }
 });
@@ -44,7 +45,7 @@ test('every house has a chapter, and the 12th always ends at the final gate', ()
 test('the same birth and run give the same chapters; a new run can change the lesser spirits', () => {
   const r = fakeReading(9);
   const a = newRun(r, 1, { pressing: 'Mars' }), b = newRun(r, 1, { pressing: 'Mars' }), c = newRun(r, 2, { pressing: 'Mars' });
-  const names = (run: RunState) => Array.from({ length: 12 }, (_, i) => houseSteps(r, run, i + 1).map(s => s.enemy?.id ?? s.kind).join(',')).join('|');
+  const names = (run: RunState) => Array.from({ length: 12 }, (_, i) => houseSteps(r, run, i + 1).map(s => s.enemies?.map(e => e.id).join('+') ?? s.kind).join(',')).join('|');
   assert.equal(names(a), names(b));
   let differs = false;
   for (let s = 1; s <= 20 && !differs; s++) { const rr = fakeReading(s); differs = names(newRun(rr, 1, { pressing: 'Mars' })) !== names(newRun(rr, 7, { pressing: 'Mars' })); }
@@ -101,8 +102,8 @@ test('balance floor: the starting deck alone gets a plain bot through the early 
     const r = fakeReading(seed), run = newRun(r, 1, { pressing: 'Saturn' });
     while (!run.over) {
       const st = currentStep(r, run);
-      if (st.enemy) {
-        const { state } = startCombat({ deck: run.deck, enemies: [st.enemy], ground: r.houses[run.house - 1].element as 'fire', seed, run: 1, fight: run.fights++, hp: run.hp, maxHp: run.maxHp, mods: { cls: r.cls.ruler } });
+      if (st.enemies) {
+        const { state } = startCombat({ deck: run.deck, enemies: st.enemies, ground: r.houses[run.house - 1].element as 'fire', seed, run: 1, fight: run.fights++, hp: run.hp, maxHp: run.maxHp, mods: { cls: r.cls.ruler } });
         bot(state);
         if (state.phase !== 'won') { run.over = 'lost'; break; }
         run.hp = state.player.hp;
@@ -114,4 +115,27 @@ test('balance floor: the starting deck alone gets a plain bot through the early 
   const avg = reached.reduce((a, b) => a + b, 0) / reached.length;
   console.log(`  starter deck only, no rewards: average house reached ${avg.toFixed(1)}; spread ${Math.min(...reached)}-${Math.max(...reached)}`);
   assert.ok(avg >= 3, `too hard early: ${avg}`);
+});
+
+import { summary } from './sim';
+test('balance: a careless run rarely wins, a steady one sometimes does, and runs last', () => {
+  const careless = summary('careless', 80), steady = summary('steady', 80);
+  console.log(`  careless: avg house ${careless.avg.toFixed(1)}, wins ${(careless.wins * 100).toFixed(0)}%; steady: avg house ${steady.avg.toFixed(1)}, wins ${(steady.wins * 100).toFixed(0)}%, a win ≈ ${steady.mins.toFixed(0)} min`);
+  assert.ok(careless.wins <= 0.12, `just pressing cards should not win often: ${careless.wins}`);
+  assert.ok(steady.wins >= 0.05 && steady.wins <= 0.4, `a thoughtful first run should sometimes win: ${steady.wins}`);
+  assert.ok(steady.avg >= 6, `too hard: steady play averages house ${steady.avg}`);
+  assert.ok(steady.fights >= 12, 'a run should have a dozen or more fights');
+});
+
+test('planets, bosses and the gate grow enraged once, below half health', () => {
+  const { state } = startCombat({ deck: Array(10).fill('strike'), enemies: [PLANET_ENEMIES.Mars], ground: 'earth', seed: 5, run: 1, hp: 60, maxHp: 60, mods: {} });
+  state.enemies[0].hp = Math.floor(state.enemies[0].maxHp / 2) + 3;
+  const ev = playCard(state, 0, 0);
+  assert.ok(ev.some(e => e.t === 'enrage'));
+  assert.equal(state.enemies[0].status.might, (PLANET_ENEMIES.Mars.might ?? 0) + 2);
+  const again = state.hand.length ? playCard(state, 0, 0) : [];
+  assert.ok(!again.some(e => e.t === 'enrage'), 'only once');
+  const lesser = startCombat({ deck: Array(10).fill('strike'), enemies: [LESSER.fire[0]], ground: 'earth', seed: 5, run: 1, hp: 60, maxHp: 60, mods: {} }).state;
+  lesser.enemies[0].hp = 14;
+  assert.ok(!playCard(lesser, 0, 0).some(e => e.t === 'enrage'), 'lesser spirits never rage');
 });

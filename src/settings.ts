@@ -1,7 +1,7 @@
 /* Small player settings, kept on the phone. */
-export type Settings = { vibration: boolean; guideDone: boolean };
+export type Settings = { vibration: boolean; sound: boolean; guideDone: boolean };
 const KEY = 'bhava.settings';
-const DEFAULTS: Settings = { vibration: true, guideDone: false };
+const DEFAULTS: Settings = { vibration: true, sound: true, guideDone: false };
 
 export function getSettings(): Settings {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { ...DEFAULTS }; }

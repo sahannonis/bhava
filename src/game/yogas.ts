@@ -39,3 +39,30 @@ export const yogaText = (y: Yoga) => {
   const two = Array.isArray(y.planets[1]) ? `${y.planets[0]} with the ${y.planets[1].join(' or ')}` : `${y.planets[0]} and ${y.planets[1]}`;
   return `${two}: ${y.meaning}`;
 };
+
+export function yogaEffectText(y: Yoga): string {
+  return y.effects.map(e => {
+    switch (e.kind) {
+      case 'draw': return `draw ${e.n} cards`;
+      case 'block': return `gain ${e.amount} block`;
+      case 'breath': return `gain ${e.n} breath`;
+      case 'damage': return `deal ${e.amount} damage`;
+      case 'heal': return `heal ${e.amount}`;
+      case 'loseHp': return `lose ${e.amount} health`;
+      case 'status': return `${e.to === 'self' ? 'gain' : 'give'} ${e.amount} ${e.status}`;
+    }
+  }).join(', ').replace(/^./, c => c.toUpperCase()) + '.';
+}
+
+/* Yogas the player has ever formed, kept on the phone for the Book of Yogas. */
+export function knownYogas(): string[] {
+  try { return JSON.parse(localStorage.getItem('bhava.yogas') || '[]'); } catch { return []; }
+}
+export function learnYoga(id: string): boolean {
+  try {
+    const k = new Set(knownYogas());
+    if (k.has(id)) return false;
+    k.add(id); localStorage.setItem('bhava.yogas', JSON.stringify([...k]));
+    return true;
+  } catch { return false; }
+}

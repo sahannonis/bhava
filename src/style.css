@@ -470,8 +470,8 @@ body::after {
   box-shadow: 0 0 0 2px var(--leaf), 0 0 10px rgba(255, 200, 90, 0.6);
 }
 .cost.free { color: var(--soot); background: #ffd36e; }
-.card-name { font: 400 0.95rem/1.1 var(--display); padding-left: 18px; align-self: center; }
-.card-kind { position: absolute; top: 8px; right: 7px; }
+.card-name { font: 400 0.95rem/1.05 var(--display); padding-left: 14px; align-self: center; }
+.card-kind { position: absolute; left: 7px; bottom: 6px; }
 .card-kind svg { width: 14px; height: 14px; fill: none; stroke: var(--soot-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .card-text { font-size: 0.78rem; line-height: 1.3; border-top: 1px solid rgba(36, 30, 21, 0.3); padding-top: 4px; }
 .card-text b { font-weight: 700; }
@@ -487,7 +487,27 @@ body::after {
 .card.planet-saturn .seal { color: var(--saturn); box-shadow: 0 0 10px var(--glow-saturn); }
 
 .fight-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.piles { font-size: 0.85rem; color: var(--soot-soft); font-variant-numeric: tabular-nums; }
+.piles { display: flex; gap: 10px; position: relative; }
+.pile { position: relative; width: 46px; height: 58px; padding: 0; border: 0; background: none; display: grid; place-items: center; align-content: center; color: var(--soot); cursor: pointer; }
+.pile-stack { position: absolute; inset: 0 4px 6px; border: 1.5px solid var(--soot); border-radius: 5px;
+  background: repeating-linear-gradient(45deg, rgba(36, 30, 21, 0.13) 0 1.5px, transparent 1.5px 6px), linear-gradient(#e7d8a9, #d8c48f);
+  box-shadow: 2px 2px 0 -0.5px #e2d2a2, 2px 2px 0 1px var(--soot), 4px 4px 0 -0.5px #e2d2a2, 4px 4px 0 1px var(--soot); }
+.pile-stack.discard { background: linear-gradient(#efe3bb, #e2d2a2); transform: rotate(4deg); opacity: 0.85; }
+.pile b { position: relative; font: 400 1.2rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.pile small { position: relative; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--soot-soft); }
+.lvl { position: absolute; left: 25px; bottom: 9px; display: flex; gap: 3px; padding: 2px 5px; border-radius: 8px; background: var(--soot); }
+.lvl i { width: 6px; height: 6px; border-radius: 50%; background: #ffd36e; box-shadow: 0 0 5px rgba(255, 200, 90, 0.9); }
+.lvl i.off { background: transparent; box-shadow: inset 0 0 0 1px rgba(255, 211, 110, 0.55); }
+.card.upgraded { border-color: #8a6410; }
+.yoga-chip { background: #ffe9a8; border-color: #b8860b; box-shadow: 0 0 10px rgba(255, 200, 90, 0.8); font-size: 0.75rem; padding: 0 8px; }
+.yoga-new { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: #7a5a10; margin-bottom: 2px; }
+.yoga-book { list-style: none; padding: 0; margin: 12px 0 18px; display: grid; gap: 10px; }
+.yoga-book li { display: grid; gap: 2px; padding: 10px 12px; border: 1.2px solid var(--soot); border-radius: 7px; background: rgba(250, 241, 210, 0.55); box-shadow: 0 0 14px rgba(255, 200, 90, 0.35); }
+.yoga-book li b { font: 400 1.1rem var(--display); }
+.yoga-book li em { font-style: normal; font-weight: 700; font-size: 0.9rem; }
+.yoga-book li.unknown { box-shadow: none; border-style: dashed; opacity: 0.7; }
+.sheet-note { font-size: 0.95rem; }
+.done-note { font-style: italic; color: var(--soot); }
 .end-turn { margin: 0; min-height: 50px; padding: 0 22px; }
 .end-turn:disabled { opacity: 0.5; }
 
@@ -547,17 +567,17 @@ body::after {
 /* ---------- Day 4: yogas, lent cards, the guide, settings ---------- */
 .yoga {
   position: absolute; left: var(--gutter); right: var(--gutter); top: 34%;
-  z-index: 45; pointer-events: none; text-align: center;
+  z-index: 45; text-align: center; cursor: pointer;
   padding: 14px 12px 16px;
   background: radial-gradient(closest-side, rgba(246, 236, 202, 1) 55%, rgba(255, 226, 160, 0.85) 80%, transparent);
-  animation: yoga-in 1.5s ease-out forwards;
+  animation: yoga-in 3s ease-out forwards;
 }
 .yoga-name { font: 400 1.7rem var(--display); color: var(--soot); text-shadow: 0 0 18px rgba(255, 190, 60, 1), 0 0 2px #fff6d8; }
 .yoga-meaning { font-size: 0.95rem; color: var(--soot); margin-top: 4px; }
-@keyframes yoga-in { 0% { opacity: 0; transform: scale(0.85); } 15% { opacity: 1; transform: scale(1.04); } 25% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+@keyframes yoga-in { 0% { opacity: 0; transform: scale(0.85); } 8% { opacity: 1; transform: scale(1.04); } 14% { transform: scale(1); } 88% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-14px); } }
 
 .card.lent { border-color: #b8860b; box-shadow: 0 0 0 1.5px #ffd36e, 0 0 16px rgba(255, 200, 90, 0.7), 0 6px 14px rgba(36, 30, 21, 0.18); }
-.lent-tag { position: absolute; left: 6px; bottom: 7px; right: 30px; font-size: 0.62rem; font-style: italic; color: #7a5a10; line-height: 1.1; }
+.lent-tag { position: absolute; left: 25px; bottom: 7px; right: 30px; font-size: 0.62rem; font-style: italic; color: #7a5a10; line-height: 1.1; }
 
 .coach { position: absolute; inset: 0; z-index: 55; pointer-events: none; }
 .coach-ring {
@@ -651,7 +671,16 @@ body::after {
 .rest-row .ghost { min-height: 52px; padding: 6px 10px; }
 .rest-row .ghost:disabled { opacity: 0.45; }
 .mantra.small { font-size: 1.05rem; }
-.lore summary { cursor: pointer; font-family: var(--display); font-size: 1.1rem; min-height: 40px; display: flex; align-items: center; }
+.lore summary { cursor: pointer; list-style: none; font-family: var(--display); font-size: 1.1rem; min-height: 60px; display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1.5px solid var(--soot); border-radius: 8px; background: linear-gradient(#e9dbae, #d9c591); box-shadow: 0 3px 0 rgba(36, 30, 21, 0.35), inset 0 1.2px 0 var(--cut-light); }
+.lore summary::-webkit-details-marker { display: none; }
+.lore summary:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(36, 30, 21, 0.35); }
+.lore summary span:last-child { display: grid; }
+.lore summary small { font-family: var(--text); font-size: 0.8rem; color: var(--soot-soft); }
+.lore[open] summary small { display: none; }
+.lore-stone { flex: none; width: 34px; height: 40px; border-radius: 45% 45% 8px 8px; background: radial-gradient(circle at 35% 30%, #a99d86, #6d6250 70%); border: 1.5px solid var(--soot);
+  background-image: repeating-linear-gradient(0deg, transparent 0 7px, rgba(36, 30, 21, 0.5) 7px 8.2px), radial-gradient(circle at 35% 30%, #a99d86, #6d6250 70%); background-size: 60% 60%, 100% 100%; background-position: center, center; background-repeat: no-repeat; animation: stone-glow 2.4s ease-in-out infinite alternate; }
+@keyframes stone-glow { from { box-shadow: 0 0 0 rgba(255, 200, 90, 0); } to { box-shadow: 0 0 14px rgba(255, 200, 90, 0.85); } }
+.lore[open] .lore-stone { animation: none; }
 .lore p { font-style: italic; font-size: 1.05rem; }
 
 /* living enemies: they breathe, and now and then they blink */
@@ -677,3 +706,12 @@ body::after {
 .details thead th { font-family: var(--display); font-weight: 400; color: var(--soot-soft); }
 .details tbody th { font-weight: 700; }
 .method { font-size: 0.86rem; color: var(--soot-soft); margin-top: 10px; text-align: left; }
+
+/* ---------- Day 6b: pairs of foes, enraged foes ---------- */
+.foe-row:has(.foe + .foe) { gap: 4px; align-items: flex-end; }
+.foe-row:has(.foe + .foe) .foe { width: 49%; font-size: 0.92rem; }
+.foe-row:has(.foe + .foe) .foe-figure svg { width: clamp(84px, 25vw, 118px); }
+.foe-row:has(.foe + .foe) .intents { flex-wrap: wrap; justify-content: center; gap: 4px; }
+.foe-row:has(.foe + .foe) .foe-name { text-align: center; line-height: 1.1; }
+.foe.enraged .foe-figure svg { filter: drop-shadow(0 0 10px rgba(255, 90, 42, 0.85)); }
+.foe.enraged .eye { fill: #ffb08a; }

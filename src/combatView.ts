@@ -2,8 +2,10 @@
    cards fly, hits land with a short freeze and a shake, numbers rise like brush strokes,
    and the phone gives a small kick. With reduced motion on, the same story plays without movement. */
 import { CARDS, STATUS_INFO, cardText, type StatusId } from './game/cards';
-import { YOGAS, yogaText } from './game/yogas';
+import { YOGAS, learnYoga, yogaEffectText, yogaText } from './game/yogas';
 import { buzz } from './haptics';
+import { sfx } from './sound';
+import { levelPips, nameFit } from './cardsView';
 import { getSettings, setSetting } from './settings';
 import {
   attackDamage, baseDamage, cantPlay, cardCost, endTurn, intentOf, playCard, startCombat,
@@ -79,7 +81,10 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     <section class="you" id="you" aria-label="You"></section>
     <section class="hand" id="hand" aria-label="Your hand"></section>
     <footer class="fight-bottom">
-      <p class="piles" id="piles"></p>
+      <div class="piles" id="piles">
+        <button class="pile" id="drawPile" aria-label="Draw pile"><span class="pile-stack"></span><b id="drawN">0</b><small>draw</small></button>
+        <button class="pile" id="discardPile" aria-label="Discard pile"><span class="pile-stack discard"></span><b id="discardN">0</b><small>discard</small></button>
+      </div>
       <button class="primary end-turn" id="end">End turn</button>
     </footer>
     <div class="banner" id="banner" aria-hidden="true"></div>
@@ -123,7 +128,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
       const dead = e.hp <= 0;
       const it = dead ? [] : intentOf(state, i);
       const tint = e.def.planet ? `tint-${e.def.planet.toLowerCase()}` : e.def.element ? `tint-${e.def.element}` : '';
-      return `<div class="foe ${tint}${e.def.rank === 'boss' || e.def.rank === 'gate' ? ' big' : ''}${dead ? ' gone' : ''}${selected !== null && CARDS[state.hand[selected]?.id]?.target === 'enemy' && !dead ? ' aim' : ''}" data-foe="${i}"
+      return `<div class="foe ${tint}${e.def.rank === 'boss' || e.def.rank === 'gate' ? ' big' : ''}${dead ? ' gone' : ''}${e.enraged ? ' enraged' : ''}${selected !== null && CARDS[state.hand[selected]?.id]?.target === 'enemy' && !dead ? ' aim' : ''}" data-foe="${i}"
           role="button" tabindex="0" aria-label="${esc(e.name)}, ${e.hp} of ${e.maxHp} health${e.block ? `, ${e.block} block` : ''}. Next it will ${intentWords(it)}.">
         <div class="intents">${intentHtml(it)}</div>
         <div class="foe-figure"><svg viewBox="0 0 120 120" aria-hidden="true">
@@ -140,7 +145,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
   function drawYou() {
     const p = state.player;
     $('you').innerHTML = `
-      <div class="you-stats">${bar(p.hp, p.maxHp)}${p.block ? `<span class="chip blockchip">${ICON.shield}<span>${p.block}</span></span>` : ''}${statusChips(p.status)}</div>
+      <div class="you-stats">${bar(p.hp, p.maxHp)}${p.block ? `<span class="chip blockchip">${ICON.shield}<span>${p.block}</span></span>` : ''}${statusChips(p.status)}${[...state.yogasThisTurn].map(id => `<button class="chip yoga-chip" data-yoga="${id}">${esc(YOGAS.find(y => y.id === id)!.name.replace(' Yoga', ''))}</button>`).join('')}</div>
       <div class="breath" aria-label="Breath ${p.breath} of ${p.maxBreath}">${Array.from({ length: Math.max(p.maxBreath, p.breath) }, (_, i) => lamp(i < p.breath)).join('')}</div>`;
   }
 
@@ -161,21 +166,39 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
         data-card="${i}" data-uid="${c.uid}" style="--tilt:${tilt.toFixed(1)}deg;--drop:${(Math.abs(i - mid) ** 2 * 2.2).toFixed(1)}px;--delay:${enter ? i * 55 : 0}ms"
         aria-pressed="${selected === i}" aria-label="${esc(def.name)}, costs ${cost} breath. ${text.replace(/<[^>]+>/g, '')}${why ? ` ${why}` : ''}">
       <span class="cost${cost < def.cost ? ' free' : ''}">${cost}</span>
-      <span class="card-name">${esc(def.name)}</span>
+      <span class="card-name" style="${nameFit(def.name)}">${esc(def.name)}</span>
       <span class="card-kind">${def.type === 'attack' ? ICON.blade : ICON.shield}</span>
       <span class="card-text">${text}</span>
       ${def.planet ? `<span class="seal">${def.planet.slice(0, 2)}</span>` : ''}
+      ${levelPips(c.id)}
       ${c.lent ? `<span class="lent-tag">Lent by ${esc(setup.giftFrom ?? 'the sky')}</span>` : ''}
     </button>`;
   }
 
-  function drawHand(enter = false) {
-    $('hand').innerHTML = state.hand.map((_, i) => cardHtml(i, enter)).join('');
+  let inView = new Set<number>(); // cards already in view: only new ones fly in
+  function drawHand(_enter = false) {
+    const fresh = state.hand.filter(c => !inView.has(c.uid)).map(c => c.uid);
+    $('hand').innerHTML = state.hand.map((_, i) => cardHtml(i)).join('');
     $('hand').style.setProperty('--n', String(state.hand.length));
+    inView = new Set(state.hand.map(c => c.uid));
+    if (!fresh.length || still()) return;
+    const from = $('drawPile').getBoundingClientRect();
+    fresh.forEach((uid, k) => {
+      const el = root.querySelector<HTMLElement>(`.card[data-uid="${uid}"]`);
+      if (!el) return;
+      const to = el.getBoundingClientRect(), end = getComputedStyle(el).transform;
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2), dy = from.top + from.height / 2 - (to.top + to.height / 2);
+      el.animate([
+        { transform: `translate(${dx}px, ${dy}px) scale(0.35) rotate(-14deg)`, opacity: 0.4 },
+        { transform: end === 'none' ? 'none' : end, opacity: 1 },
+      ], { duration: 360, delay: k * 70, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
+      setTimeout(() => sfx('draw'), k * 70);
+    });
   }
 
   function drawPiles() {
-    $('piles').textContent = `Draw ${state.drawPile.length} · Discard ${state.discard.length}${state.used.length ? ` · Used ${state.used.length}` : ''}`;
+    $('drawN').textContent = String(state.drawPile.length);
+    $('discardN').textContent = String(state.discard.length);
     $('turn').textContent = `Turn ${state.turn}`;
     ($('end') as HTMLButtonElement).disabled = busy || state.phase !== 'player';
   }
@@ -228,12 +251,13 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     await sleep(650);
   }
 
-  async function yogaBanner(name: string, meaning: string) {
+  async function yogaBanner(name: string, meaning: string, first: boolean) {
     const el = document.createElement('div');
     el.className = 'yoga';
-    el.innerHTML = `<p class="yoga-name">${esc(name)}</p><p class="yoga-meaning">${esc(meaning)}</p>`;
+    el.innerHTML = `${first ? '<p class="yoga-new">New yoga, added to your Book of Yogas</p>' : ''}<p class="yoga-name">${esc(name)}</p><p class="yoga-meaning">${esc(meaning)}</p>`;
     fightEl.appendChild(el);
-    await sleep(1500);
+    // stays about three seconds; a tap lets it go sooner
+    await new Promise<void>(res => { const tm = setTimeout(res, still() ? 60 : 3000); el.addEventListener('click', () => { clearTimeout(tm); res(); }, { once: true }); });
     el.remove();
   }
 
@@ -261,8 +285,8 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     for (const ev of events) {
       switch (ev.t) {
         case 'turn':
-          if (ev.who === 'enemy') await banner('Their turn');
-          else if (ev.turn > 1) { await banner('Your turn'); }
+          if (ev.who === 'enemy') { sfx('enemyTurn'); await banner('Their turn'); }
+          else if (ev.turn > 1) { sfx('turn'); await banner('Your turn'); }
           break;
         case 'play': {
           const def = CARDS[ev.id];
@@ -274,6 +298,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
             cardEl.style.zIndex = '30';
             const pull = def.type === 'attack' ? [{ transform: 'translate(0,0) scale(1.08)' }, { transform: 'translate(0,14px) scale(1.04)', offset: 0.22 }, { transform: `translate(${dx}px,${dy}px) scale(0.45) rotate(${dx > 0 ? 18 : -18}deg)`, opacity: 0.2 }]
               : [{ transform: 'translate(0,0) scale(1.08)' }, { transform: `translate(${dx * 0.3}px,${dy - 30}px) scale(0.7)`, opacity: 0 }];
+            sfx('card');
             await cardEl.animate(pull, { duration: def.type === 'attack' ? 300 : 340, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
           }
           buzz('tap');
@@ -292,45 +317,63 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
             if (ev.amount >= 10) shake(fightEl);
             if (ev.to === 'player') { fightEl.classList.remove('ouch'); void fightEl.offsetWidth; fightEl.classList.add('ouch'); }
             buzz(ev.amount >= 10 ? 'big' : 'hit');
-          } else if (ev.blocked) float(el, 'Blocked', 'blocked');
+            sfx(ev.from === 'burn' ? 'burn' : ev.amount >= 10 ? 'bigHit' : 'hit');
+          } else if (ev.blocked) { float(el, 'Blocked', 'blocked'); sfx('block'); }
           await sleep(ev.from === 'burn' ? 380 : 300);
           break;
         }
-        case 'block': float(whoEl(ev.who), `+${ev.amount} block`, 'guarded'); await sleep(240); break;
+        case 'block': float(whoEl(ev.who), `+${ev.amount} block`, 'guarded'); sfx('block'); await sleep(240); break;
         case 'heal': {
           const f = ev.who === 'player' ? shown.player : shown.enemies[ev.who as number];
           f.hp += ev.amount; nudgeBar(ev.who);
-          float(whoEl(ev.who), `+${ev.amount}`, 'healed'); await sleep(260); break;
+          float(whoEl(ev.who), `+${ev.amount}`, 'healed'); sfx('heal'); await sleep(260); break;
         }
-        case 'status': float(whoEl(ev.who), `${STATUS_INFO[ev.status].name} ${ev.amount}`, `st st-${ev.status}`); await sleep(260); break;
+        case 'status': float(whoEl(ev.who), `${STATUS_INFO[ev.status].name} ${ev.amount}`, `st st-${ev.status}`); sfx(ev.status === 'burn' ? 'burn' : 'status'); await sleep(260); break;
         case 'move': {
           const el = foeEl(ev.who);
           float(el, ev.name, 'move');
+          sfx('enemyTurn');
           if (el && !still()) await el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(22px) scale(1.05)' }, { transform: 'translateY(0)' }], { duration: 320, easing: 'ease-in-out' }).finished;
           break;
         }
         case 'skip': float(foeEl(ev.who), 'Charmed: skips', 'move'); await sleep(500); break;
         case 'death': {
           if (ev.who !== 'player') {
+            sfx('death');
             const el = foeEl(ev.who as number);
             if (el && !still()) await el.animate([{ filter: 'blur(0)', opacity: 1, transform: 'scale(1)' }, { filter: 'blur(8px)', opacity: 0, transform: 'scale(1.25) translateY(-10px)' }], { duration: 750, easing: 'ease-in', fill: 'forwards' }).finished;
           }
           break;
         }
-        case 'draw': drawHand(true); drawPiles(); await sleep(120 + ev.uids.length * 55); break;
+        case 'draw': drawHand(); drawPiles(); await sleep(160 + ev.uids.length * 70); break;
         case 'discard': {
           const els = [...root.querySelectorAll<HTMLElement>('.card')];
-          if (!still()) await Promise.all(els.map((el, i) => el.animate([{ transform: getComputedStyle(el).transform, opacity: 1 }, { transform: 'translate(120px,60px) rotate(25deg) scale(0.6)', opacity: 0 }], { duration: 260, delay: i * 30, easing: 'ease-in', fill: 'forwards' }).finished));
+          const to = $('discardPile').getBoundingClientRect();
+          if (!still()) await Promise.all(els.map((el, i) => {
+            const r = el.getBoundingClientRect();
+            const dx = to.left + to.width / 2 - (r.left + r.width / 2), dy = to.top + to.height / 2 - (r.top + r.height / 2);
+            return el.animate([{ transform: getComputedStyle(el).transform, opacity: 1 }, { transform: `translate(${dx}px, ${dy}px) rotate(18deg) scale(0.3)`, opacity: 0.2 }], { duration: 300, delay: i * 35, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
+          }));
+          inView = new Set();
+          drawPiles();
           break;
         }
         case 'shuffle': float($('piles'), 'Shuffled', 'move'); await sleep(200); break;
         case 'yoga': {
           const y = YOGAS.find(x => x.id === ev.id)!;
-          buzz('yoga');
-          await yogaBanner(y.name, yogaText(y));
+          const first = learnYoga(y.id);
+          buzz('yoga'); sfx('yoga');
+          await yogaBanner(y.name, `${yogaText(y)} ${yogaEffectText(y)}`, first);
+          drawYou();
           break;
         }
         case 'trait': float($('you'), ev.text, 'move'); await sleep(500); break;
+        case 'enrage': {
+          const el = foeEl(ev.who);
+          float(el, 'Enraged!', 'hurt'); sfx('enemyTurn'); buzz('big');
+          if (el && !still()) await el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12)', filter: 'drop-shadow(0 0 14px #ff5a2a)' }, { transform: 'scale(1)' }], { duration: 520, easing: 'ease-out' }).finished;
+          break;
+        }
         case 'gift': break;
         case 'end': await finish(ev.result); return;
       }
@@ -344,6 +387,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     if (stepIdx >= 0) endGuide();
     drawPiles();
     buzz(result === 'won' ? 'win' : 'lose');
+    sfx(result === 'won' ? 'win' : 'lose');
     await sleep(400);
     const over = document.createElement('div');
     over.className = `over ${result}`;
@@ -408,6 +452,8 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     else tip(f.getAttribute('aria-label')!.split('. ').slice(1).join('. '));
   });
   $('you').addEventListener('click', e => {
+    const yc = (e.target as Element).closest<HTMLElement>('[data-yoga]');
+    if (yc) { const y = YOGAS.find(x => x.id === yc.dataset.yoga)!; tip(`${y.name}: ${yogaText(y)} ${yogaEffectText(y)}`); return; }
     const chip = (e.target as Element).closest<HTMLElement>('[data-status]');
     if (chip) { const k = chip.dataset.status as StatusId; tip(`${STATUS_INFO[k].name}: ${STATUS_INFO[k].text}`); return; }
     if (selected !== null && CARDS[state.hand[selected].id].target === 'self') void play(selected);
@@ -422,6 +468,8 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     drawPiles();
     if (state.phase === 'player') guideOn('end');
   });
+  $('drawPile').addEventListener('click', () => tip(`${state.drawPile.length} cards left to draw. When it runs out, your discard pile is shuffled back in.`));
+  $('discardPile').addEventListener('click', () => tip(`${state.discard.length} cards played or discarded this round.${state.used.length ? ` ${state.used.length} used up for this fight.` : ''}`));
   $('leave').addEventListener('click', () => done({ result: 'left', hp: state.player.hp, turns: state.turn }));
 
   /* ---------- the guide, on the first fight ---------- */

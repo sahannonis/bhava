@@ -13,7 +13,7 @@ const reading = { seed: 5, cls: { ruler: 'Jupiter' }, houses: [] } as unknown as
 test('every card has an upgrade that is better or cheaper', () => {
   for (const id of BASE_IDS()) {
     const a = CARDS[id], b = CARDS[`${id}+`];
-    assert.ok(b && b.name === `${a.name}+`, id);
+    assert.ok(b && b.name === a.name, id);
     assert.ok(b.cost < a.cost || cardText(b) !== cardText(a), `${id} does not improve`);
   }
 });
@@ -53,6 +53,6 @@ test('story outcomes change the run, and health never drops to 0 from a story', 
   assert.equal(run.deck.filter(c => c === 'strike').length, before - 1);
   applyOutcome(run, { karma: 0, upgrade: 'random', text: 'x' }, rngFor(1, 3));
   assert.equal(run.deck.filter(c => c.endsWith('+')).length, 1);
-  upgradeCard(run, 0); upgradeCard(run, 0);
-  assert.ok(!run.deck[0].endsWith('++'));
+  for (let i = 0; i < 6; i++) upgradeCard(run, 0);
+  assert.ok(run.deck[0].endsWith('+++') && !run.deck[0].endsWith('++++'), 'a card stops at level 4');
 });

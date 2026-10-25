@@ -128,7 +128,7 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = Object.fromEntries([
 export function scaled(def: EnemyDef, house: number, opts: { strength?: 'strong' | 'normal' | 'weak'; pressing?: boolean } = {}): EnemyDef {
   // bosses in the first three houses are a little gentler, so a crowded 1st house isn't a wall
   const early = def.rank === 'boss' && house <= 3 ? 0.85 : 1;
-  const hpMult = (1 + 0.1 * (house - 1)) * (opts.strength === 'strong' ? 1.2 : opts.strength === 'weak' ? 0.85 : 1) * early;
+  const hpMult = (1 + 0.12 * (house - 1)) * (opts.strength === 'strong' ? 1.2 : opts.strength === 'weak' ? 0.85 : 1) * early;
   const plus = Math.floor((house - 1) / 2) + (opts.strength === 'strong' ? 1 : 0);
   const moves = def.moves.map(m => ({
     name: m.name,

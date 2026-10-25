@@ -10,7 +10,8 @@ import { cardFace, pickCard } from './cardsView';
 import { rngFor } from './rng';
 import { saveRun, endRun, markCleared } from './runStore';
 import { showFight } from './combatView';
-import { GIFT_CARD } from './game/cards';
+import { CARDS, GIFT_CARD, MAX_LEVEL, canUpgrade, levelOf } from './game/cards';
+import { sfx } from './sound';
 import type { Element, Mods } from './game/combat';
 import { buzz } from './haptics';
 
@@ -33,7 +34,7 @@ function page(root: HTMLElement, inner: string) {
 }
 
 const stepList = (steps: Step[], at: number) => `<ol class="steps">${steps.map((s, i) =>
-  `<li class="${i < at ? 'done' : i === at ? 'now' : ''}"><span>${STEP_NAME[s.kind]}</span>${s.enemy ? `<small>${esc(s.enemy.name)}</small>` : ''}</li>`).join('')}</ol>`;
+  `<li class="${i < at ? 'done' : i === at ? 'now' : ''}"><span>${STEP_NAME[s.kind]}</span>${s.enemies ? `<small>${esc(s.enemies.length > 1 && s.enemies[0].name.replace(/ I+$/, '') === s.enemies[1].name.replace(/ I+$/, '') ? `Two ${s.enemies[0].name.replace(/ I+$/, '')}s` : s.enemies.map(e => e.name).join(' and '))}</small>` : ''}</li>`).join('')}</ol>`;
 
 /* Where the run picks up: the opening of a house, or straight into its next step. */
 export function continueRun(root: HTMLElement, ctx: RunContext): void {
@@ -66,10 +67,10 @@ function playStep(root: HTMLElement, ctx: RunContext) {
   const reward = gainPrana(ctx, PRANA[step.kind] * (ctx.moonFromMoon === 2 ? 1.1 : 1), false);
   showFight(root, {
     title: `${ordinal(run.house)} house, ${STEP_NAME[step.kind].toLowerCase()}`,
-    deck: run.deck, enemies: [step.enemy!], ground: h.element as Element,
+    deck: run.deck, enemies: step.enemies!, ground: h.element as Element,
     seed: r.seed, run: run.run, fight: run.fights, hp: run.hp, maxHp: run.maxHp,
     mods: { ...ctx.mods, giftCard: ctx.blessing ? GIFT_CARD[ctx.blessing] : undefined },
-    modNote: [ctx.modNote, step.enemy!.might && step.enemy!.planet === run.pressing ? `${run.pressing} presses on you today: its enemies hit 1 harder.` : ''].filter(Boolean).join(' '),
+    modNote: [ctx.modNote, step.enemies!.some(e => e.might && e.planet === run.pressing) ? `${run.pressing} presses on you today: its enemies hit 1 harder.` : ''].filter(Boolean).join(' '),
     giftFrom: ctx.blessing ?? undefined, mode: 'run', reward,
   }, res => {
     if (res.result === 'left') { saveRun(run); ctx.back(); return; }
@@ -94,7 +95,8 @@ const rngAt = (ctx: RunContext, salt: number) => rngFor(ctx.reading.seed, ctx.ru
 /* After a won fight: pick one of three cards, or take a little prana instead. */
 function rewardPage(root: HTMLElement, ctx: RunContext, step: Step) {
   const { reading: r, run } = ctx;
-  const planets = step.enemy?.planets ?? (step.enemy?.planet ? [step.enemy.planet] : r.houses[run.house - 1].planets.map(p => p.name));
+  const boss = step.enemies?.find(e => e.planet);
+  const planets = boss?.planets ?? (boss?.planet ? [boss.planet] : r.houses[run.house - 1].planets.map(p => p.name));
   const ids = cardChoices(rngAt(ctx, 500 + run.fights), { housePlanets: planets, cls: r.cls.ruler, count: ctx.moonFromMoon === 5 ? 4 : 3 });
   page(root, `
     <p class="wordmark">The ${ordinal(run.house)} house · after the fight</p>
@@ -159,7 +161,7 @@ function restStep(root: HTMLElement, ctx: RunContext) {
   const discount = lord === 'Mercury' ? 0.25 : 0;
   const stall = cardChoices(rngAt(ctx, 900 + run.house), { housePlanets: [lord], cls: r.cls.ruler, count: lord === 'Jupiter' ? 4 : 3 });
   const bought = new Set<number>();
-  let rested = false, freeCut = lord === 'Mars' || ctx.moonFromMoon === 12, remedyDone = !run.pressing;
+  let rested = false, meditated = false, freeCut = lord === 'Mars' || ctx.moonFromMoon === 12, remedyDone = !run.pressing;
   // Arrival gifts that need no choice
   if (lord === 'Saturn' && !run.restGiftTaken) { run.maxHp += 4; run.hp += 4; }
   if (lord === 'Venus' && !run.restGiftTaken) gainPrana(ctx, 10);
@@ -167,7 +169,14 @@ function restStep(root: HTMLElement, ctx: RunContext) {
   saveRun(run);
   const remPlanet = run.pressing || ctx.pressingToday, rem = REMEDY[remPlanet];
 
+  const both = lord === 'Sun';
+  let restNote = '';
   const draw = () => {
+    const upgradable = run.deck.some(canUpgrade);
+    const usedOne = rested || meditated;
+    const canRest = !rested && heal > 0 && (both || !usedOne);
+    const canMeditate = !meditated && upgradable && (both || !usedOne);
+    if (!upgradable && !meditated && !restNote) restNote = `Every card in your deck is at its highest level (${MAX_LEVEL + 1}).`;
     page(root, `
       <p class="wordmark">The ${ordinal(run.house)} house · a rest place</p>
       <div class="rest-head">${bigLamp}<h1 class="house-title">A lamp is lit for you</h1></div>
@@ -177,11 +186,12 @@ function restStep(root: HTMLElement, ctx: RunContext) {
 
       <section class="rest-part">
         <h2>Rest or meditate</h2>
-        <p class="hint">${lord === 'Sun' ? 'The Sun keeps this place: you may do both.' : 'Choose one.'}</p>
+        <p class="hint">${both ? 'The Sun keeps this place: you may rest and meditate.' : 'Choose one: rest to heal, or meditate to raise one card a level.'}</p>
         <div class="rest-row">
-          <button class="ghost" id="rest" ${rested || heal <= 0 ? 'disabled' : ''}>Rest: heal ${heal}</button>
-          <button class="ghost" id="meditate" ${rested && lord !== 'Sun' ? 'disabled' : ''}>Meditate: upgrade a card</button>
+          <button class="ghost" id="rest" ${!canRest ? 'disabled' : ''}>${rested ? 'Rested' : `Rest: heal ${heal}`}</button>
+          <button class="ghost" id="meditate" ${!canMeditate ? 'disabled' : ''}>${meditated ? 'Meditated' : 'Meditate: raise a card'}</button>
         </div>
+        ${restNote ? `<p class="hint done-note">${restNote}</p>` : ''}
       </section>
 
       <section class="rest-part">
@@ -199,20 +209,28 @@ function restStep(root: HTMLElement, ctx: RunContext) {
           : '<p class="hint">Done. No planet presses on this run.</p>'}
       </section>
 
-      <details class="rest-part lore"><summary>Read the lore stone</summary><p>${esc(LORE[(run.house + run.run) % LORE.length])}</p></details>
+      <details class="rest-part lore"><summary><span class="lore-stone" aria-hidden="true"></span><span>Read the lore stone<small>Tap to read what is carved here</small></span></summary><p>${esc(LORE[(run.house + run.run) % LORE.length])}</p></details>
 
       <div class="run-actions"><button class="primary" id="go">Walk on</button></div>`);
 
-    root.querySelector('#rest')?.addEventListener('click', () => { run.hp += heal; rested = true; buzz('tap'); saveRun(run); draw(); });
+    root.querySelector('#rest')?.addEventListener('click', () => { run.hp += heal; rested = true; restNote = `You rest and heal ${heal}.`; buzz('tap'); sfx('heal'); saveRun(run); draw(); });
     root.querySelector('#meditate')?.addEventListener('click', async () => {
-      const i = await pickCard('Upgrade a card', run.deck, { disabled: id => id.endsWith('+'), note: 'An upgraded card keeps its name with a + and grows stronger.' });
+      sfx('tap');
+      const i = await pickCard('Raise a card one level', run.deck, {
+        disabled: id => !canUpgrade(id),
+        show: id => `${id}+`,
+        label: id => canUpgrade(id) ? `Level ${levelOf(id) + 1} → ${levelOf(id) + 2}` : 'Highest level',
+        note: `Each card has ${MAX_LEVEL + 1} levels. You are seeing each card as it will be after this meditation: more damage, block or healing, or a lower cost.`,
+      });
       if (i === null) return;
-      upgradeCard(run, i); rested = true; buzz('yoga'); saveRun(run); draw();
+      const name = CARDS[run.deck[i]].name;
+      upgradeCard(run, i); meditated = true; restNote = `${name} rises to level ${levelOf(run.deck[i]) + 1}.`;
+      buzz('yoga'); sfx('upgrade'); saveRun(run); draw();
     });
     root.querySelectorAll<HTMLElement>('[data-buy]').forEach(el => el.addEventListener('click', () => {
       const i = +el.dataset.buy!, cost = price(stall[i], discount);
       if (bought.has(i) || run.prana < cost) return;
-      run.prana -= cost; run.deck.push(stall[i]); bought.add(i); buzz('tap'); saveRun(run); draw();
+      run.prana -= cost; run.deck.push(stall[i]); bought.add(i); buzz('tap'); sfx('buy'); saveRun(run); draw();
     }));
     root.querySelector('#cut')!.addEventListener('click', async () => {
       if (!freeCut && run.prana < CUT_PRICE) return;

@@ -17,6 +17,7 @@ export type EnemyState = Fighter & {
   moveIdx: number;
   history: number[];
   attackedThisTurn: boolean;
+  enraged?: boolean;
 };
 
 /* Changes that come from outside the fight: today's Moon, the class, upgrades bought with karma. */
@@ -62,6 +63,7 @@ export type CombatEvent =
   | { t: 'death'; who: Who }
   | { t: 'yoga'; id: string; name: string }
   | { t: 'trait'; text: string }
+  | { t: 'enrage'; who: number; might: number }
   | { t: 'gift'; uid: number; id: string }
   | { t: 'end'; result: 'won' | 'lost' };
 
@@ -332,6 +334,7 @@ function hit(s: CombatState, from: Who, to: Who, base: number, events: CombatEve
   const through = Math.min(target.hp, amount - blocked);
   target.hp = Math.max(0, target.hp - (amount - blocked));
   events.push({ t: 'damage', to, amount: amount - blocked, blocked, from });
+  enrage(s, to, events);
   if (attack) {
     // burning ground: each side's first attack in a turn also burns
     const first = from === 'player' ? !s.playerAttackedThisTurn : !s.enemies[from].attackedThisTurn;
@@ -340,6 +343,17 @@ function hit(s: CombatState, from: Who, to: Who, base: number, events: CombatEve
   }
   if (!isAlive(target)) events.push({ t: 'death', who: to });
   return through;
+}
+
+/* Planets, bosses and the gate fight harder once brought below half health: they gain might, once. */
+export const ENRAGE: Partial<Record<string, number>> = { planet: 2, boss: 2, gate: 3 };
+function enrage(s: CombatState, who: Who, events: CombatEvent[]) {
+  if (who === 'player') return;
+  const e = s.enemies[who], n = ENRAGE[e.def.rank];
+  if (!n || e.enraged || !isAlive(e) || e.hp > e.maxHp / 2) return;
+  e.enraged = true;
+  events.push({ t: 'enrage', who, might: n });
+  addStatus(s, who, 'might', n, events);
 }
 
 function enemyAct(s: CombatState, i: number, a: EnemyAction, events: CombatEvent[]) {
@@ -381,6 +395,7 @@ function burnTick(s: CombatState, who: Who, events: CombatEvent[]) {
   if (!b) return;
   f.hp = Math.max(0, f.hp - b);
   events.push({ t: 'damage', to: who, amount: b, blocked: 0, from: 'burn' });
+  enrage(s, who, events);
   f.status.burn = b - 1;
   if (!f.status.burn) delete f.status.burn;
   if (!isAlive(f)) events.push({ t: 'death', who });

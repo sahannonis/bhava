@@ -1,13 +1,14 @@
 /* A run: the twelve houses walked in order, each a short chapter of steps.
    One planet: lesser fight, story, the planet. Two or more: lesser, story, lesser, the conjunction.
-   Empty: story, rest. The 12th always ends at the final gate. */
+   Empty: lesser, story, rest. The 12th always ends at the final gate.
+   From the 5th house on, lesser spirits come in pairs. */
 import type { Reading } from '../seed';
 import { rngFor } from '../rng';
 import { LESSER, PLANET_ENEMIES, conjunction, gateShade, scaled, type EnemyDef } from './enemies';
 import { starterDeck } from './cards';
 
 export type StepKind = 'lesser' | 'story' | 'planet' | 'boss' | 'rest' | 'gate';
-export type Step = { kind: StepKind; house: number; enemy?: EnemyDef };
+export type Step = { kind: StepKind; house: number; enemies?: EnemyDef[] };
 
 export type RunState = {
   v: 1;
@@ -26,6 +27,7 @@ export type RunState = {
   over?: 'won' | 'lost';
 };
 
+export const PAIRS_FROM = 5, PAIR_HP = 0.7;
 export const PRANA: Record<string, number> = { lesser: 8, planet: 15, boss: 25, gate: 30 };
 
 const strongest = (s: string[]) => (s.includes('strong') ? 'strong' : s.every(x => x === 'weak') ? 'weak' : 'normal') as 'strong' | 'normal' | 'weak';
@@ -33,22 +35,27 @@ const strongest = (s: string[]) => (s.includes('strong') ? 'strong' : s.every(x 
 export function houseSteps(r: Reading, run: RunState, n: number): Step[] {
   const h = r.houses[n - 1];
   const rng = rngFor(r.seed, run.run * 1000 + n);
-  const lesser = () => scaled(rng.pick(LESSER[h.element]), n);
+  // one spirit early on; from the 5th house two together, each a little smaller
+  const lesser = (): EnemyDef[] => {
+    if (n < PAIRS_FROM) return [scaled(rng.pick(LESSER[h.element]), n)];
+    const [a, b] = [rng.pick(LESSER[h.element]), rng.pick(LESSER[h.element])];
+    return [a, b].map((d, i) => ({ ...scaled(d, n), hp: Math.round(scaled(d, n).hp * PAIR_HP), name: a.id === b.id ? `${d.name} ${i ? 'II' : 'I'}` : d.name }));
+  };
   const pressing = (p: string) => p === run.pressing;
   let steps: Step[];
   if (h.planets.length === 0) {
     steps = n === 12
-      ? [{ kind: 'story', house: n }, { kind: 'gate', house: n, enemy: scaled(gateShade(r.cls.ruler), n, { pressing: pressing(r.cls.ruler) }) }]
-      : [{ kind: 'story', house: n }, { kind: 'rest', house: n }];
+      ? [{ kind: 'lesser', house: n, enemies: lesser() }, { kind: 'story', house: n }, { kind: 'gate', house: n, enemies: [scaled(gateShade(r.cls.ruler), n, { pressing: pressing(r.cls.ruler) })] }]
+      : [{ kind: 'lesser', house: n, enemies: lesser() }, { kind: 'story', house: n }, { kind: 'rest', house: n }];
   } else if (h.planets.length === 1) {
     const p = h.planets[0];
-    steps = [{ kind: 'lesser', house: n, enemy: lesser() }, { kind: 'story', house: n },
-      { kind: n === 12 ? 'gate' : 'planet', house: n, enemy: scaled(PLANET_ENEMIES[p.name], n, { strength: p.strength, pressing: pressing(p.name) }) }];
+    steps = [{ kind: 'lesser', house: n, enemies: lesser() }, { kind: 'story', house: n },
+      { kind: n === 12 ? 'gate' : 'planet', house: n, enemies: [scaled(PLANET_ENEMIES[p.name], n, { strength: p.strength, pressing: pressing(p.name) })] }];
   } else {
     const names = h.planets.map(p => p.name);
     const boss = scaled(conjunction(names), n, { strength: strongest(h.planets.map(p => p.strength)), pressing: names.some(pressing) });
-    steps = [{ kind: 'lesser', house: n, enemy: lesser() }, { kind: 'story', house: n }, { kind: 'lesser', house: n, enemy: lesser() },
-      { kind: n === 12 ? 'gate' : 'boss', house: n, enemy: boss }];
+    steps = [{ kind: 'lesser', house: n, enemies: lesser() }, { kind: 'story', house: n }, { kind: 'lesser', house: n, enemies: lesser() },
+      { kind: n === 12 ? 'gate' : 'boss', house: n, enemies: [boss] }];
   }
   return steps;
 }
@@ -76,6 +83,7 @@ export const STEP_NAME: Record<StepKind, string> = { lesser: 'Lesser spirit', st
 
 /* ---------- changing the run ---------- */
 import type { Outcome } from './stories';
+import { baseId, canUpgrade } from './cards';
 import type { Rng } from '../rng';
 
 export function applyOutcome(run: RunState, o: Outcome, rng: Rng): string[] {
@@ -85,18 +93,18 @@ export function applyOutcome(run: RunState, o: Outcome, rng: Rng): string[] {
   if (o.hp) { const before = run.hp; run.hp = Math.max(1, Math.min(run.maxHp, run.hp + o.hp)); const d = run.hp - before; if (d) notes.push(`${d > 0 ? '+' : ''}${d} health`); }
   if (o.prana) { const before = run.prana; run.prana = Math.max(0, run.prana + o.prana); const d = run.prana - before; if (d) notes.push(`${d > 0 ? '+' : ''}${d} prana`); }
   if (o.addCard) { run.deck.push(o.addCard); notes.push(`a new card`); }
-  if (o.removeCard) { const i = run.deck.findIndex(c => c.replace('+', '') === o.removeCard); if (i >= 0) { run.deck.splice(i, 1); notes.push('one card set down'); } }
+  if (o.removeCard) { const i = run.deck.findIndex(c => baseId(c) === o.removeCard); if (i >= 0) { run.deck.splice(i, 1); notes.push('one card set down'); } }
   if (o.upgrade) { const id = upgradeRandom(run, rng); if (id) notes.push(`${id} upgraded`); }
   return notes;
 }
 
 export function upgradeCard(run: RunState, index: number): void {
-  if (!run.deck[index].endsWith('+')) run.deck[index] += '+';
+  if (canUpgrade(run.deck[index])) run.deck[index] += '+';
 }
 
 /* Upgrade one card that isn't upgraded yet; returns its base id. */
 export function upgradeRandom(run: RunState, rng: Rng): string | null {
-  const open = run.deck.map((c, i) => [c, i] as const).filter(([c]) => !c.endsWith('+'));
+  const open = run.deck.map((c, i) => [c, i] as const).filter(([c]) => canUpgrade(c));
   if (!open.length) return null;
   const [id, i] = rng.pick(open);
   upgradeCard(run, i);

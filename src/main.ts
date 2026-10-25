@@ -13,6 +13,8 @@ import { chartSvg } from './chartSvg';
 import { ENEMIES, GROUND, KIND_NAME, REMEDY, REST_GIFT, TRANSIT_LINE } from './content';
 import { moonSvg, todaySky, type Sky } from './today';
 import { startStarlight } from './ambience';
+import { sfx, unlockAudio } from './sound';
+import { YOGAS, knownYogas, yogaEffectText, yogaText } from './game/yogas';
 import { showFight } from './combatView';
 import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
 import { getSettings, setSetting } from './settings';
@@ -143,7 +145,7 @@ function housePanel(r: Reading, n: number, current: number): string {
   } else if (h.kind === 'gate') {
     body = '<p>Every run ends here. Your 12th house is empty, so the gate is held by a shade of your own lagna lord.</p>';
   } else {
-    body = `<p>A rest place. Rest, upgrade a card, or buy one with prana.</p>
+    body = `<p>A lesser spirit guards the way, then a rest place: heal or raise a card a level, and buy cards with prana.</p>
       <p class="gift">Its lord, ${h.lord}, sits in your ${ordinal(h.lordHouse)} house. <b>${REST_GIFT[h.lord]}</b></p>`;
   }
   const where = n === current ? 'You stand at its door.' : n < current ? 'Cleared.' : `Reached after the ${ordinal(n - 1)} house.`;
@@ -256,6 +258,7 @@ function showChart(r: Reading) {
         <small>Walk your twelve houses in order, from the self to release.${cleared.length ? ` Cleared so far: ${cleared.length} of 12.` : ''}</small>`}
       <div class="enter-more">
         <button class="link" id="enter">Practice fight</button>
+        <button class="link" id="yogaBook">Book of Yogas (${knownYogas().length} of ${YOGAS.length})</button>
         ${run ? '<button class="link" id="giveUp">Give up this run</button>' : ''}
       </div>
     </div>
@@ -266,6 +269,7 @@ function showChart(r: Reading) {
       <div class="settings">
         <label class="switch"><input type="checkbox" id="vibe" ${getSettings().vibration ? 'checked' : ''} /> <span>Vibration</span></label>
         <button class="link" id="vibeTest">Test it</button>
+        <label class="switch"><input type="checkbox" id="snd" ${getSettings().sound ? 'checked' : ''} /> <span>Sound</span></label>
         <button class="link" id="guideAgain">Show the fight guide again</button>
       </div>
       <button class="link" id="forget">Forget my birth on this phone</button>
@@ -274,6 +278,8 @@ function showChart(r: Reading) {
 
   document.getElementById('vibe')!.addEventListener('change', e => setSetting('vibration', (e.target as HTMLInputElement).checked));
   document.getElementById('vibeTest')!.addEventListener('click', () => buzz('win', true));
+  document.getElementById('snd')!.addEventListener('change', e => { setSetting('sound', (e.target as HTMLInputElement).checked); sfx('yoga'); });
+  document.getElementById('yogaBook')!.addEventListener('click', () => { sfx('tap'); showYogaBook(); });
   document.getElementById('guideAgain')!.addEventListener('click', e => { setSetting('guideDone', false); (e.target as HTMLElement).textContent = 'The guide will show in your next fight'; });
   const map = document.getElementById('map')!, panel = document.getElementById('panel')!, legend = document.getElementById('legend')!;
   const draw = (cast = false) => {
@@ -381,5 +387,24 @@ function starWheel(): string {
 }
 
 /* ---------- start ---------- */
+unlockAudio();
 startStarlight();
 loadBirth().then(b => (b ? showChart(castChart(b)) : showBirth(null)));
+
+/* The yogas you have formed in fights. The ones not yet found show only which planets make them. */
+function showYogaBook(): void {
+  const known = new Set(knownYogas());
+  const el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = `<div class="sheet-card" role="dialog" aria-modal="true" aria-label="Book of Yogas">
+    <div class="sheet-head"><h2>Book of Yogas</h2><button class="link" data-close>Close</button></div>
+    <p class="sheet-note">Play cards of two planets in the same turn and they join, the way planets that meet in a chart form a yoga. ${known.size} of ${YOGAS.length} found.</p>
+    <ul class="yoga-book">${YOGAS.map(y => known.has(y.id)
+      ? `<li><b>${esc(y.name)}</b><span>${esc(yogaText(y))}</span><em>${esc(yogaEffectText(y))}</em></li>`
+      : `<li class="unknown"><b>Not yet found</b><span>${esc(Array.isArray(y.planets[1]) ? `${y.planets[0]} with the ${y.planets[1].join(' or ')}` : `${y.planets[0]} and ${y.planets[1]}`)}</span></li>`).join('')}</ul>
+  </div>`;
+  document.body.appendChild(el);
+  const close = () => el.remove();
+  el.querySelector('[data-close]')!.addEventListener('click', close);
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+}

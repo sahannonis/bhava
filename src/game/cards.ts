@@ -95,12 +95,12 @@ export function upgradeDef(d: CardDef): CardDef {
       case 'drain': grew = true; return { ...e, amount: e.amount + 3 };
       case 'block': grew = true; return { ...e, amount: e.amount + 3 };
       case 'heal': grew = true; return { ...e, amount: e.amount + 2 };
-      case 'status': if (e.status === 'charmed') return e; grew = true; return { ...e, amount: e.amount + 1 };
+      case 'status': if (e.status === 'charmed') { if (d.cost > 0) return e; grew = true; return { ...e, amount: e.amount + 1 }; } grew = true; return { ...e, amount: e.amount + 1 };
       case 'draw': if (d.cost === 0) { grew = true; return { ...e, n: e.n + 1 }; } return e;
       default: return e;
     }
   });
-  return { ...d, id: `${d.id}+`, name: `${d.name}+`, effects, cost: grew ? d.cost : Math.max(0, d.cost - 1) };
+  return { ...d, id: `${d.id}+`, effects, cost: grew ? d.cost : Math.max(0, d.cost - 1) };
 }
 
 const UPGRADED: Record<string, CardDef> = {};
@@ -109,11 +109,19 @@ export const CARDS: Record<string, CardDef> = new Proxy(BASE, {
   get(t, k) {
     if (typeof k !== 'string') return undefined;
     if (k in t) return t[k];
-    if (k.endsWith('+') && k.slice(0, -1) in t) return (UPGRADED[k] ??= upgradeDef(t[k.slice(0, -1)]));
+    const base = k.replace(/\++$/, ''), n = k.length - base.length;
+    if (n > 0 && n <= MAX_LEVEL && base in t) {
+      if (!UPGRADED[k]) { let d = t[base]; for (let i = 0; i < n; i++) d = upgradeDef(d); UPGRADED[k] = d; }
+      return UPGRADED[k];
+    }
     return undefined;
   },
 });
+export const MAX_LEVEL = 3;
 export const isUpgraded = (id: string) => id.endsWith('+');
+export const levelOf = (id: string) => id.length - id.replace(/\++$/, '').length;
+export const baseId = (id: string) => id.replace(/\++$/, '');
+export const canUpgrade = (id: string) => levelOf(id) < MAX_LEVEL;
 export const BASE_IDS = () => Object.keys(BASE);
 
 /* Each class: its signature card, and the two cards of its planet it starts with. */
