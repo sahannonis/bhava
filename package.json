@@ -6,7 +6,7 @@
     "dev": "vite --host",
     "build": "tsc && vite build",
     "build:preview": "vite build --mode preview",
-    "test": "node --test tests/engine.test.cjs && node --import tsx --test tests/rng.test.ts tests/combat.test.ts tests/run.test.ts tests/day6.test.ts tests/day7.test.ts tests/day8.test.ts",
+    "test": "node --test tests/engine.test.cjs && node --import tsx --test tests/rng.test.ts tests/combat.test.ts tests/run.test.ts tests/day6.test.ts tests/day7.test.ts tests/day8.test.ts tests/day9.test.ts",
     "android": "npm run build && npx cap sync android"
   },
   "author": "",

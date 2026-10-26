@@ -24,7 +24,11 @@ type Engine = {
   describe(lon: number): { lon: number; sign: number; deg: number };
   localToUTC(y: number, mo: number, d: number, h: number, mi: number, tz: string): { utc: number; offset: number };
   fmtOffset(min: number): string;
+  dashas(utcMs: number, moonLon: number): Dashas;
+  dashaAt(d: Dashas, ms: number): { md: Period; ad: Period; pd: Period } | null;
 };
+export type Period = { lord: string; start: number; end: number; sub: Period[] };
+export type Dashas = { balanceYears: number; list: Period[] };
 
 // The engine file is UMD: bundled it arrives as a CommonJS default; served raw it sets a global.
 const make = ((starEngine as any).default ?? (globalThis as any).createStarEngine) as (a: unknown) => Engine;

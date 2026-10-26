@@ -116,7 +116,7 @@ with sync_playwright() as p:
     pg2.fill('#placeQ', 'colombo'); pg2.wait_for_selector('#placeList li'); pg2.click('#placeList li >> nth=0')
     pg2.click('button.primary'); pg2.wait_for_selector('.reading, .chart'); pg2.locator('#readBack').click() if pg2.locator('#readBack').count() else None; pg2.wait_for_selector('.chart')
     sky2 = pg2.inner_text('.sky')
-    assert 'Chandrashtama today' in sky2 and "Today's remedy, for Moon" in sky2, sky2
+    assert 'Chandrashtama: the Moon is 8th' in sky2 and "Today's remedy, for Moon" in sky2, sky2
 
     assert not errs, errs
     print('screens ok')

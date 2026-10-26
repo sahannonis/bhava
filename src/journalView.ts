@@ -1,7 +1,8 @@
 /* The Journal: every reading you have opened, kept forever. Dying ends a run, never a reading. */
 import type { Reading } from './seed';
 import { ordinal } from './seed';
-import { firstReading, houseReading, FREE_HOUSES, DISCLAIMER } from './readings';
+import { firstReading, houseReading, wholeChartReading, FREE_HOUSES, DISCLAIMER } from './readings';
+import { showTimeline } from './timelineView';
 import { HOUSE_MEANING } from './readings/houses';
 import { showReading } from './readingView';
 import { loadCleared } from './runStore';
@@ -27,7 +28,8 @@ export function showJournal(root: HTMLElement, r: Reading, back: () => void): vo
     <ul class="journal-list">
       <li><button class="journal-row" id="first"><span class="j-n">✦</span><span class="j-t"><b>Your first reading</b><small>Your lagna and your Moon</small></span></button></li>
       ${rows}
-      <li><button class="journal-row shut" disabled><span class="j-n">☉</span><span class="j-t"><b>The whole chart</b><small>${cleared.size} of 12 houses cleared</small></span></button></li>
+      <li><button class="journal-row${cleared.size === 12 ? '' : ' shut'}" id="whole" ${cleared.size === 12 ? '' : 'disabled'}><span class="j-n">☉</span><span class="j-t"><b>The whole chart</b><small>${cleared.size === 12 ? (full ? 'All twelve houses, read together' : 'Opening lines · the rest with the Full reading') : `${cleared.size} of 12 houses cleared`}</small></span></button></li>
+      <li><button class="journal-row" id="timeline"><span class="j-n">◷</span><span class="j-t"><b>Your dasha timeline</b><small>${full ? 'Every period of your life' : 'Your current chapter · the rest with the Full reading'}</small></span></button></li>
     </ul>
     <p class="disclaimer">${DISCLAIMER}</p>
     <div class="run-actions"><button class="link" id="back">Back to your chart</button></div>
@@ -39,5 +41,7 @@ export function showJournal(root: HTMLElement, r: Reading, back: () => void): vo
     const n = +el.dataset.house!; sfx('tap');
     showReading(root, houseReading(r, n), { free: n <= FREE_HOUSES, back: again, backLabel: 'Back to the Journal' });
   }));
+  root.querySelector('#whole')?.addEventListener('click', () => { sfx('tap'); showReading(root, wholeChartReading(r), { free: false, back: again, backLabel: 'Back to the Journal' }); });
+  root.querySelector('#timeline')!.addEventListener('click', () => { sfx('tap'); showTimeline(root, r, again); });
   root.querySelector('#back')!.addEventListener('click', back);
 }

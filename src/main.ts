@@ -21,6 +21,8 @@ import { chosenLife, endOfRun, perks, runKarma, streakNow, triesLeft, wonToday }
 import { showBook } from './bookView';
 import { bookCount, learn } from './book';
 import { showJournal } from './journalView';
+import { showCompat } from './compatView';
+import { showTimeline } from './timelineView';
 import { showReading } from './readingView';
 import { firstReading } from './readings';
 import { showFight } from './combatView';
@@ -205,14 +207,14 @@ const E_SIGN = (n: number) => ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Vi
 
 function skyStrip(sky: Sky): string {
   const notes = [
-    sky.chandrashtama ? '<p class="sky-note"><b>Chandrashtama today.</b> The Moon is 8th from your birth Moon: a day to go gently and put off big decisions.</p>' : '',
     sky.sadeSati ? `<p class="sky-note"><b>Sade Sati${sky.sadeSati === 'rising' ? ', first part' : sky.sadeSati === 'peak' ? ', the middle' : ', last part'}.</b> Saturn's seven and a half years over your Moon. Slow, steady work carries you through.</p>` : '',
   ].join('');
   const rem = REMEDY[sky.pressing];
   return `${moonSvg(sky.elong)}
     <div class="sky-text">
       <p class="sky-title"><span class="pl-moon">${sky.title}</span> today, in ${sky.signName}</p>
-      <p>${sky.effect}</p>
+      <p class="sky-line">${sky.line}</p>
+      <p class="sky-effect"><b>In your runs today:</b> ${sky.effect}</p>
       <small>${Math.round(sky.lit * 100)}% lit, ${sky.elong < 180 ? 'growing' : 'shrinking'}</small>
     </div>
     ${notes || sky.blessing ? `<div class="sky-notes">${notes}${sky.blessing ? `<p class="sky-note"><b>Blessing of <span class="pl-${sky.blessing.toLowerCase()}">${sky.blessing}</span>.</b> In a good place for your Moon today, it lends you ${CARDS[GIFT_CARD[sky.blessing]].name} in every fight.</p>` : ''}</div>` : ''}
@@ -253,6 +255,7 @@ function showChart(r: Reading) {
       <p class="lead">${r.timeKnown ? 'Your lagna is' : 'Read from your Moon in'} ${lagnaName}, ruled by ${r.cls.ruler}. ${r.cls.style}</p>
       ${r.timeKnown ? '' : '<p class="note">Without a birth time, your houses are read from the Moon. Add the time if you can find it.</p>'}
     </header>
+    ${firstSeen(r) ? '' : `<button class="first-ready" id="firstRead"><span>Your first reading is ready</span><small>Your lagna, your Moon, your birth star and the chapter you are in</small></button>`}
     <section class="sky" aria-label="Today's sky">${skyStrip(sky)}</section>
     <div class="modes" role="group" aria-label="Show">
       <button type="button" class="mode" id="modeBirth" aria-pressed="true">Birth chart</button>
@@ -273,6 +276,8 @@ function showChart(r: Reading) {
       <div class="book-links">
         <button class="ghost" id="journal"><span>Journal</span><small>${cleared.length + 1} reading${cleared.length ? 's' : ''}</small></button>
         <button class="ghost" id="book"><span>Book of the Sky</span><small>${bookCount()} of 42 pages</small></button>
+        <button class="ghost" id="compat"><span>Compatibility</span><small>The 36-point match</small></button>
+        <button class="ghost" id="timeline"><span>Your timeline</span><small>The dasha periods of your life</small></button>
       </div>
       <div class="enter-more">
         ${run ? '<button class="link" id="giveUp">Give up this run</button>' : ''}
@@ -302,6 +307,8 @@ function showChart(r: Reading) {
   refreshReminder(r);
   document.getElementById('snd')!.addEventListener('change', e => { setSetting('sound', (e.target as HTMLInputElement).checked); sfx('yoga'); });
   document.getElementById('book')!.addEventListener('click', () => { sfx('tap'); showBook(app, r, () => showChart(r)); });
+  document.getElementById('compat')!.addEventListener('click', () => { sfx('tap'); showCompat(app, r, () => showChart(r)); });
+  document.getElementById('timeline')!.addEventListener('click', () => { sfx('tap'); showTimeline(app, r, () => showChart(r)); });
   document.getElementById('journal')!.addEventListener('click', () => { sfx('tap'); showJournal(app, r, () => showChart(r)); });
   document.getElementById('guideAgain')!.addEventListener('click', e => { setSetting('guideDone', false); (e.target as HTMLElement).textContent = 'The guide will show in your next fight'; });
   const map = document.getElementById('map')!, panel = document.getElementById('panel')!, legend = document.getElementById('legend')!;
@@ -343,6 +350,7 @@ function showChart(r: Reading) {
   document.getElementById('forget')!.addEventListener('click', async () => { await forgetBirth(); showBirth(null); });
   document.getElementById('enter')!.addEventListener('click', () => startPractice(r, sky));
   document.getElementById('begin')!.addEventListener('click', () => beginOrContinue(r, sky, run));
+  document.getElementById('firstRead')?.addEventListener('click', () => { markFirstSeen(r); sfx('tap'); showReading(app, firstReading(r), { free: true, back: () => showChart(r), backLabel: 'Back to your chart' }); });
   document.getElementById('hub')!.addEventListener('click', () => { sfx('tap'); openHub(r, sky); });
   document.getElementById('giveUp')?.addEventListener('click', e => {
     const b = e.target as HTMLButtonElement;
@@ -429,15 +437,18 @@ function starWheel(): string {
 /* ---------- start ---------- */
 unlockAudio();
 startStarlight();
-loadBirth().then(b => (b ? openChart(castChart(b)) : showBirth(null)));
+loadBirth().then(b => (b ? showChart(castChart(b)) : showBirth(null)));
 
-/* A chart seen for the first time opens with its first reading, then the map. */
-function openChart(r: Reading): void {
-  let seen = '';
-  try { seen = localStorage.getItem('bhava.firstSeen') || ''; } catch { /* show it */ }
+/* A chart cast from the birth form opens with its first reading, then the map.
+   Opening the app goes straight to the map; a chart whose first reading is unread shows a card for it. */
+const firstSeen = (r: Reading) => { try { return localStorage.getItem('bhava.firstSeen') === String(r.seed); } catch { return true; } };
+function markFirstSeen(r: Reading) {
+  try { localStorage.setItem('bhava.firstSeen', String(r.seed)); } catch { /* shown again next time */ }
   learn('signs', [r.chart.by.Moon.sign, ...(r.timeKnown ? [r.lagnaSign] : [])]);
   learn('planets', ['Moon']);
-  if (seen === String(r.seed)) return showChart(r);
-  try { localStorage.setItem('bhava.firstSeen', String(r.seed)); } catch { /* next time again */ }
+}
+function openChart(r: Reading): void {
+  if (firstSeen(r)) return showChart(r);
+  markFirstSeen(r);
   showReading(app, firstReading(r), { free: true, back: () => showChart(r), backLabel: 'See your twelve houses' });
 }

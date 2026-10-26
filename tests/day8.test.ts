@@ -28,10 +28,12 @@ test('readings come from the real chart, for many births, with and without a tim
     for (const time of ['06:45', '22:30', null]) {
       const r = castChart({ date: `1999-01-${String(d).padStart(2, '0')}`, time, place: colombo });
       const f = firstReading(r);
-      assert.equal(f.sections.length, 2);
+      assert.ok(f.sections.length >= 4 && f.sections.some(s => s.heading.startsWith('Your birth star')) && f.sections.some(s => s.kind === 'now'));
       for (let n = 1; n <= 12; n++) {
         const h = houseReading(r, n);
-        assert.equal(h.sections.length, 1 + Math.max(1, r.houses[n - 1].planets.length) + 1);
+        const heads = h.sections.map(s => s.heading);
+        assert.equal(heads.filter(x => !x.startsWith('Its lord') && / in your \d/.test(x)).length, r.houses[n - 1].planets.length);
+        assert.ok(heads.includes('When it speaks loudest') && heads.includes('The thread') && heads.some(x => x.startsWith('Its lord')), heads.join('|'));
         for (const s of h.sections) assert.ok(s.text.length > 30 && !s.text.includes('undefined'), s.heading);
       }
       for (const y of chartYogas(r)) assert.ok(YOGAS.some(x => x.id === y));

@@ -11,8 +11,7 @@ export const canRemind = () => Capacitor.isNativePlatform();
 
 export function reminderLine(r: Reading, day: Date): { title: string; body: string } {
   const sky = todaySky(r, day);
-  const notes = [sky.chandrashtama ? 'Chandrashtama today: go gently.' : '', `${sky.pressing} presses on you, and today's trial is waiting.`];
-  return { title: `${sky.title}, in ${sky.signName}`, body: notes.filter(Boolean).join(' ') };
+  return { title: `${sky.title}, in ${sky.signName}`, body: `${sky.line.split('. ')[0]}. Today's trial: ${sky.pressing}.` };
 }
 
 async function schedule(r: Reading): Promise<void> {

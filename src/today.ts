@@ -3,6 +3,7 @@
 import { E } from './engine';
 import { GOOD_FROM_MOON, MOON_DAY, PRESS } from './content';
 import { ordinal, type Reading } from './seed';
+import { dailyLine } from './readings/daily';
 
 export type Transit = {
   name: string; sign: number; signName: string; retro: boolean;
@@ -15,6 +16,8 @@ export type Sky = {
   dayKey: string;
   fromMoon: number; signName: string; title: string; effect: string; // today's Moon and its game effect
   elong: number; lit: number;          // the Moon's phase
+  moonLon: number;                     // today's sidereal Moon, for its nakshatra
+  line: string;                        // the day's line, read for this person
   transits: Transit[];
   chandrashtama: boolean;              // Moon 8th from the birth Moon
   sadeSati: 'rising' | 'peak' | 'setting' | null; // Saturn 12th, 1st or 2nd from it
@@ -51,6 +54,8 @@ export function todaySky(r: Reading, now = new Date()): Sky {
     title: moon.fromMoon === 1 ? 'Moon over your birth Moon' : `Moon ${ordinal(moon.fromMoon)} from your birth Moon`,
     effect: MOON_DAY[moon.fromMoon - 1].effect,
     elong: sky.elong,
+    moonLon: sky.by.Moon.lon,
+    line: dailyLine(moon.fromMoon, sky.by.Moon.lon),
     lit: (1 - Math.cos((sky.elong * Math.PI) / 180)) / 2,
     transits,
     chandrashtama,
