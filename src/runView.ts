@@ -19,7 +19,7 @@ import { withMeta } from './metaStore';
 import { learn } from './book';
 import { houseReading, FREE_HOUSES } from './readings';
 import { readingHtml, pageNote } from './readingView';
-import { ownsFull, openFullForTest } from './purchase';
+import { ownsFull, openFullSheet } from './purchase';
 
 export type RunContext = {
   reading: Reading;
@@ -289,7 +289,7 @@ function houseClearedPage(root: HTMLElement, ctx: RunContext, n: number) {
         <button class="primary" id="go">On to the ${ordinal(run.house)} house</button>
         <button class="link" id="map">Back to your chart</button>
       </div>`);
-    root.querySelector('#unlockFull')?.addEventListener('click', () => { openFullForTest(); sfx('yoga'); draw(); });
+    root.querySelector('#unlockFull')?.addEventListener('click', () => openFullSheet(() => draw()));
     root.querySelector('#go')!.addEventListener('click', () => houseOpening(root, ctx));
     root.querySelector('#map')!.addEventListener('click', ctx.back);
   };

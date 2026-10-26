@@ -23,6 +23,7 @@ import { bookCount, learn } from './book';
 import { showJournal } from './journalView';
 import { showCompat } from './compatView';
 import { showTimeline } from './timelineView';
+import { initPurchases, ownsFull, openFullSheet, restore } from './purchase';
 import { showReading } from './readingView';
 import { firstReading } from './readings';
 import { showFight } from './combatView';
@@ -293,6 +294,7 @@ function showChart(r: Reading) {
         <label class="switch"><input type="checkbox" id="snd" ${getSettings().sound ? 'checked' : ''} /> <span>Sound</span></label>
         ${canRemind() ? `<label class="switch"><input type="checkbox" id="remind" ${getSettings().reminder ? 'checked' : ''} /> <span>Morning sky reminder, 8 am</span></label>` : ''}
         <button class="link" id="guideAgain">Show the fight guide again</button>
+        ${ownsFull() ? '<p class="hint">The Full reading is yours. Thank you.</p>' : '<button class="link" id="fullOpen">The Full reading</button><button class="link" id="fullRestoreMap">Restore a purchase</button>'}
       </div>
       <button class="link" id="forget">Forget my birth on this phone</button>
     </footer>
@@ -310,6 +312,12 @@ function showChart(r: Reading) {
   document.getElementById('compat')!.addEventListener('click', () => { sfx('tap'); showCompat(app, r, () => showChart(r)); });
   document.getElementById('timeline')!.addEventListener('click', () => { sfx('tap'); showTimeline(app, r, () => showChart(r)); });
   document.getElementById('journal')!.addEventListener('click', () => { sfx('tap'); showJournal(app, r, () => showChart(r)); });
+  document.getElementById('fullOpen')?.addEventListener('click', () => openFullSheet(() => showChart(r)));
+  document.getElementById('fullRestoreMap')?.addEventListener('click', async e => {
+    const b = e.target as HTMLButtonElement; b.textContent = 'Checking Google Play…';
+    b.textContent = (await restore()) ? 'Restored' : 'No earlier purchase found';
+    if (ownsFull()) showChart(r);
+  });
   document.getElementById('guideAgain')!.addEventListener('click', e => { setSetting('guideDone', false); (e.target as HTMLElement).textContent = 'The guide will show in your next fight'; });
   const map = document.getElementById('map')!, panel = document.getElementById('panel')!, legend = document.getElementById('legend')!;
   const draw = (cast = false) => {
@@ -437,6 +445,7 @@ function starWheel(): string {
 /* ---------- start ---------- */
 unlockAudio();
 startStarlight();
+void initPurchases();
 loadBirth().then(b => (b ? showChart(castChart(b)) : showBirth(null)));
 
 /* A chart cast from the birth form opens with its first reading, then the map.

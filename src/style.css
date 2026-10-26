@@ -851,3 +851,18 @@ body::after {
 .dosha { padding: 10px 12px; border-left: 3px solid var(--mars); background: rgba(255, 180, 150, 0.25); }
 .birth-form { display: grid; gap: 14px; }
 .period-body[hidden] { display: none; }
+.bride-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.95rem; }
+.bride-pick span { flex-basis: 100%; color: var(--soot-soft); }
+.bride-pick .mode { flex: 1; min-height: 44px; }
+.porondam { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.porondam li { display: flex; gap: 12px; align-items: flex-start; }
+.po-mark { flex: none; width: 28px; text-align: center; font-size: 1.3rem; line-height: 1.3; color: #b8860b; text-shadow: 0 0 8px rgba(255, 200, 90, 0.8); }
+.po-no .po-mark { color: var(--soot-soft); text-shadow: none; }
+.porondam b { font: 400 1.05rem var(--display); }
+.porondam b small { font: italic 0.75rem var(--text); color: var(--mars); margin-left: 4px; }
+.porondam p { font-size: 0.95rem; }
+.dosha.calm { border-left-color: #b8860b; background: rgba(255, 233, 168, 0.4); }
+.full-sheet { display: grid; gap: 12px; }
+.full-list { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+.full-list b { font-weight: 700; }
+.full-sheet .primary { margin-top: 4px; }

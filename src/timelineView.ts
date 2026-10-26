@@ -2,7 +2,7 @@
    and the shorter chapters inside each. Part of the Full reading; the current chapter is free in the first reading. */
 import type { Reading } from './seed';
 import { dashaTimeline, DISCLAIMER } from './readings';
-import { ownsFull, openFullForTest, TEST_BUILD } from './purchase';
+import { ownsFull, openFullSheet, unlockLabel } from './purchase';
 import { sfx } from './sound';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -30,7 +30,7 @@ export function showTimeline(root: HTMLElement, r: Reading, back: () => void): v
         </div>
       </li>`;
     }).join('')}</ol>
-    ${full ? '' : `<div class="locked-card"><p>Your current chapter is open. Every period of your life, with its chapters month by month and what each means in your own chart, comes with the Full reading.</p><button class="primary" id="unlockFull">${TEST_BUILD ? 'Open it (free in this test build)' : 'Open the Full reading'}</button></div>`}
+    ${full ? '' : `<div class="locked-card"><p>Your current chapter is open. Every period of your life, with its chapters month by month and what each means in your own chart, comes with the Full reading.</p><button class="primary" id="unlockFull">${unlockLabel()}</button></div>`}
     <p class="disclaimer">${DISCLAIMER}</p>
     <div class="run-actions"><button class="link" id="back">Back</button></div>
   </main>`;
@@ -39,6 +39,6 @@ export function showTimeline(root: HTMLElement, r: Reading, back: () => void): v
     const body = el.nextElementSibling as HTMLElement; body.hidden = !body.hidden; sfx('tap');
   }));
   (root.querySelector('.period.now .period-body') as HTMLElement | null)?.removeAttribute('hidden');
-  root.querySelector('#unlockFull')?.addEventListener('click', () => { openFullForTest(); sfx('yoga'); showTimeline(root, r, back); });
+  root.querySelector('#unlockFull')?.addEventListener('click', () => openFullSheet(() => showTimeline(root, r, back)));
   root.querySelector('#back')!.addEventListener('click', back);
 }

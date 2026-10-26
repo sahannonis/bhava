@@ -64,3 +64,29 @@ test('a daily line for every Moon day, with today\'s nakshatra', () => {
   assert.equal(NAKSHATRAS.length, 27);
   assert.ok(dailyLine(8, 100).includes(NAKSHATRAS[nakOf(100)].name));
 });
+
+import { porondam, kujaDosha } from '../src/readings/porondam';
+test('porondam: the ten points follow the Sri Lankan rules, counted from the bride\'s star', () => {
+  const side = (nak: number, sign = Math.floor((nak * NAK + 1) / 30)) => ({ nak, sign });
+  const pts = (b: number, g: number) => Object.fromEntries(porondam(side(b), side(g)).points.map(x => [x.id, x.result]));
+  // Ashwini and Ashlesha share the foot cord: rajju not obtained
+  assert.equal(pts(0, 8).rajju, 'no');
+  assert.equal(pts(0, 1).rajju, 'yes');
+  // Ashwini and Jyeshtha strike each other (vedha)
+  assert.equal(pts(0, 17).vedha, 'no');
+  // Mahendra: the groom's star 4th from the bride's
+  assert.equal(pts(0, 3).mahendra, 'yes'); assert.equal(pts(0, 4).mahendra, 'no');
+  // Nakath: a count of 2 from her star is good, 3 is not
+  assert.equal(pts(5, 6).nakath, 'yes'); assert.equal(pts(5, 7).nakath, 'no');
+  // direction matters: Stree Deergha needs his star well beyond hers
+  assert.equal(pts(0, 20).deergha, 'yes'); assert.equal(pts(20, 0).deergha, 'half');
+  assert.equal(porondam(side(0), side(1)).points.length, 10);
+});
+test('kuja dosha is found from the lagna and the Moon, and cancelled in its own or exalted sign', () => {
+  for (let d = 1; d <= 28; d += 9) {
+    const r = castChart({ date: `1995-05-${String(d).padStart(2, '0')}`, time: '08:00', place: colombo });
+    const k = kujaDosha(r);
+    if (['own sign', 'exalted'].includes(r.chart.by.Mars.dignity)) assert.equal(k.has, false);
+    assert.equal(k.has, k.from.length > 0);
+  }
+});
