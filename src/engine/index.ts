@@ -1,5 +1,6 @@
 /* The Samsara star engine, frozen for Bhava.
-   star-engine.js is copied unchanged from sahannonis/samsara (commit b2791ab, 21 Oct 2026),
+   star-engine.js is copied from sahannonis/samsara (commit b2791ab, 21 Oct 2026), unchanged except
+   that its wrapper also falls back to globalThis (so it loads in Node tests too),
    so changes in Samsara can't break Bhava mid-build. Planet positions come from
    Astronomy Engine 2.1.19 (MIT), the same version Samsara ships. */
 import * as Astronomy from 'astronomy-engine';

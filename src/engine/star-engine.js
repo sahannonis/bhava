@@ -3,7 +3,7 @@
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory;
   else root.createStarEngine = factory;
-})(typeof self !== 'undefined' ? self : this, function createStarEngine(A) {
+})(typeof self !== 'undefined' ? self : typeof globalThis !== 'undefined' ? globalThis : this, function createStarEngine(A) {
   'use strict';
   const D2R = Math.PI / 180, R2D = 180 / Math.PI;
   const norm = x => ((x % 360) + 360) % 360;

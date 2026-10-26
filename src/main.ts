@@ -18,7 +18,11 @@ import { showHub } from './hubView';
 import { canRemind, refreshReminder, setReminder } from './remind';
 import { loadMeta, withMeta } from './metaStore';
 import { chosenLife, endOfRun, perks, runKarma, streakNow, triesLeft, wonToday } from './game/meta';
-import { YOGAS, knownYogas, yogaEffectText, yogaText } from './game/yogas';
+import { showBook } from './bookView';
+import { bookCount, learn } from './book';
+import { showJournal } from './journalView';
+import { showReading } from './readingView';
+import { firstReading } from './readings';
 import { showFight } from './combatView';
 import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
 import { getSettings, setSetting } from './settings';
@@ -126,7 +130,7 @@ function showBirth(prev: Birth | null) {
     err.textContent = '';
     const birth: Birth = { date, time, place };
     await saveBirth(birth);
-    showChart(castChart(birth));
+    openChart(castChart(birth));
   });
 }
 
@@ -159,7 +163,7 @@ function housePanel(r: Reading, n: number, current: number): string {
     </div>
     <p class="ground"><b>${g.name}.</b> ${g.rule}</p>
     ${body}
-    <p class="where">${where} Clear it to read what this house says about you.</p>`;
+    <p class="where">${where} ${loadCleared().includes(n) ? 'Its reading is in your Journal.' : 'Clear it to read what this house says about you.'}</p>`;
 }
 
 /* The numbers behind the chart, for anyone who wants to check them. */
@@ -265,7 +269,12 @@ function showChart(r: Reading) {
       <button class="ghost hub-link" id="hub"><span>The hub</span><small>${meta.karma} karma${meta.trialOpen ? " · today's trial is waiting" : meta.streak ? ` · ${meta.streak}-day streak` : ''}</small></button>
       <div class="enter-more">
         <button class="link" id="enter">Practice fight</button>
-        <button class="link" id="yogaBook">Book of Yogas (${knownYogas().length} of ${YOGAS.length})</button>
+      </div>
+      <div class="book-links">
+        <button class="ghost" id="journal"><span>Journal</span><small>${cleared.length + 1} reading${cleared.length ? 's' : ''}</small></button>
+        <button class="ghost" id="book"><span>Book of the Sky</span><small>${bookCount()} of 42 pages</small></button>
+      </div>
+      <div class="enter-more">
         ${run ? '<button class="link" id="giveUp">Give up this run</button>' : ''}
       </div>
     </div>
@@ -292,7 +301,8 @@ function showChart(r: Reading) {
   });
   refreshReminder(r);
   document.getElementById('snd')!.addEventListener('change', e => { setSetting('sound', (e.target as HTMLInputElement).checked); sfx('yoga'); });
-  document.getElementById('yogaBook')!.addEventListener('click', () => { sfx('tap'); showYogaBook(); });
+  document.getElementById('book')!.addEventListener('click', () => { sfx('tap'); showBook(app, r, () => showChart(r)); });
+  document.getElementById('journal')!.addEventListener('click', () => { sfx('tap'); showJournal(app, r, () => showChart(r)); });
   document.getElementById('guideAgain')!.addEventListener('click', e => { setSetting('guideDone', false); (e.target as HTMLElement).textContent = 'The guide will show in your next fight'; });
   const map = document.getElementById('map')!, panel = document.getElementById('panel')!, legend = document.getElementById('legend')!;
   const draw = (cast = false) => {
@@ -419,22 +429,15 @@ function starWheel(): string {
 /* ---------- start ---------- */
 unlockAudio();
 startStarlight();
-loadBirth().then(b => (b ? showChart(castChart(b)) : showBirth(null)));
+loadBirth().then(b => (b ? openChart(castChart(b)) : showBirth(null)));
 
-/* The yogas you have formed in fights. The ones not yet found show only which planets make them. */
-function showYogaBook(): void {
-  const known = new Set(knownYogas());
-  const el = document.createElement('div');
-  el.className = 'sheet';
-  el.innerHTML = `<div class="sheet-card" role="dialog" aria-modal="true" aria-label="Book of Yogas">
-    <div class="sheet-head"><h2>Book of Yogas</h2><button class="link" data-close>Close</button></div>
-    <p class="sheet-note">Play cards of two planets in the same turn and they join, the way planets that meet in a chart form a yoga. ${known.size} of ${YOGAS.length} found.</p>
-    <ul class="yoga-book">${YOGAS.map(y => known.has(y.id)
-      ? `<li><b>${esc(y.name)}</b><span>${esc(yogaText(y))}</span><em>${esc(yogaEffectText(y))}</em></li>`
-      : `<li class="unknown"><b>Not yet found</b><span>${esc(Array.isArray(y.planets[1]) ? `${y.planets[0]} with the ${y.planets[1].join(' or ')}` : `${y.planets[0]} and ${y.planets[1]}`)}</span></li>`).join('')}</ul>
-  </div>`;
-  document.body.appendChild(el);
-  const close = () => el.remove();
-  el.querySelector('[data-close]')!.addEventListener('click', close);
-  el.addEventListener('click', e => { if (e.target === el) close(); });
+/* A chart seen for the first time opens with its first reading, then the map. */
+function openChart(r: Reading): void {
+  let seen = '';
+  try { seen = localStorage.getItem('bhava.firstSeen') || ''; } catch { /* show it */ }
+  learn('signs', [r.chart.by.Moon.sign, ...(r.timeKnown ? [r.lagnaSign] : [])]);
+  learn('planets', ['Moon']);
+  if (seen === String(r.seed)) return showChart(r);
+  try { localStorage.setItem('bhava.firstSeen', String(r.seed)); } catch { /* next time again */ }
+  showReading(app, firstReading(r), { free: true, back: () => showChart(r), backLabel: 'See your twelve houses' });
 }

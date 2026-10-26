@@ -16,6 +16,10 @@ import type { Element, Mods } from './game/combat';
 import { buzz } from './haptics';
 import { lifeRules, runKarma, endOfRun, LIVES } from './game/meta';
 import { withMeta } from './metaStore';
+import { learn } from './book';
+import { houseReading, FREE_HOUSES } from './readings';
+import { readingHtml, pageNote } from './readingView';
+import { ownsFull, openFullForTest } from './purchase';
 
 export type RunContext = {
   reading: Reading;
@@ -48,6 +52,7 @@ export function continueRun(root: HTMLElement, ctx: RunContext): void {
 
 function houseOpening(root: HTMLElement, ctx: RunContext) {
   const { reading: r, run } = ctx, n = run.house, h = r.houses[n - 1], g = GROUND[h.element], o = HOUSE_OPENING[n - 1];
+  const fresh = [...learn('houses', [n]).map(() => `the ${ordinal(n)} house`), ...learn('signs', [h.sign]).map(() => h.signName)];
   page(root, `
     <p class="wordmark">The ${ordinal(n)} house</p>
     <h1 class="house-title">${esc(o.rules[0].toUpperCase() + o.rules.slice(1))}</h1>
@@ -61,12 +66,15 @@ function houseOpening(root: HTMLElement, ctx: RunContext) {
     </div>`);
   root.querySelector('#go')!.addEventListener('click', () => playStep(root, ctx));
   root.querySelector('#map')!.addEventListener('click', ctx.back);
+  if (fresh.length) pageNote(fresh);
 }
 
 function playStep(root: HTMLElement, ctx: RunContext) {
   const { reading: r, run } = ctx, step = currentStep(r, run), h = r.houses[run.house - 1];
   if (step.kind === 'story') return storyStep(root, ctx);
   if (step.kind === 'rest') return restStep(root, ctx);
+  const met = learn('planets', step.enemies!.flatMap(e => e.planets ?? (e.planet ? [e.planet] : [])));
+  if (met.length) pageNote(met.map(String));
   const reward = gainPrana(ctx, PRANA[step.kind] * (ctx.moonFromMoon === 2 ? 1.1 : 1) * lifeRules(run.life).prana, false);
   showFight(root, {
     title: `${ordinal(run.house)} house, ${STEP_NAME[step.kind].toLowerCase()}`,
@@ -268,20 +276,25 @@ function restStep(root: HTMLElement, ctx: RunContext) {
 }
 
 function houseClearedPage(root: HTMLElement, ctx: RunContext, n: number) {
-  const { run } = ctx;
-  page(root, `
-    <p class="wordmark">The ${ordinal(n)} house</p>
-    <h1 class="house-title glow">Cleared</h1>
-    <p class="lead">The ${ordinal(n)} house takes its colour back. Its reading waits for you in the Journal.</p>
-    <p class="note">The readings arrive on Day 8.</p>
-    <p class="run-stats">${run.hp} of ${run.maxHp} health · ${run.prana} prana</p>
-    <div class="run-actions">
-      <button class="primary" id="go">On to the ${ordinal(run.house)} house</button>
-      <button class="link" id="map">Back to your chart</button>
-    </div>`);
+  const { run, reading: r } = ctx;
+  const draw = () => {
+    const locked = n > FREE_HOUSES && !ownsFull();
+    page(root, `
+      <p class="wordmark">The ${ordinal(n)} house</p>
+      <h1 class="house-title glow">Cleared</h1>
+      <p class="lead">The ${ordinal(n)} house takes its colour back, and its reading opens. It stays in your Journal for good.</p>
+      <div class="reading cleared-reading">${readingHtml(houseReading(r, n), locked)}</div>
+      <p class="run-stats">${run.hp} of ${run.maxHp} health · ${run.prana} prana</p>
+      <div class="run-actions">
+        <button class="primary" id="go">On to the ${ordinal(run.house)} house</button>
+        <button class="link" id="map">Back to your chart</button>
+      </div>`);
+    root.querySelector('#unlockFull')?.addEventListener('click', () => { openFullForTest(); sfx('yoga'); draw(); });
+    root.querySelector('#go')!.addEventListener('click', () => houseOpening(root, ctx));
+    root.querySelector('#map')!.addEventListener('click', ctx.back);
+  };
+  draw();
   buzz('win');
-  root.querySelector('#go')!.addEventListener('click', () => houseOpening(root, ctx));
-  root.querySelector('#map')!.addEventListener('click', ctx.back);
 }
 
 /* The end of a run, won or lost: count the karma, bank it, and say what opened. */

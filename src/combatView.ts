@@ -2,7 +2,9 @@
    cards fly, hits land with a short freeze and a shake, numbers rise like brush strokes,
    and the phone gives a small kick. With reduced motion on, the same story plays without movement. */
 import { CARDS, STATUS_INFO, cardText, type StatusId } from './game/cards';
-import { YOGAS, learnYoga, yogaEffectText, yogaText } from './game/yogas';
+import { YOGAS, yogaEffectText, yogaText } from './game/yogas';
+import { learn } from './book';
+import { pageNote } from './readingView';
 import { buzz } from './haptics';
 import { sfx, sfxCard } from './sound';
 import { levelPips, nameFit } from './cardsView';
@@ -302,6 +304,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
             await cardEl.animate(pull, { duration: def.type === 'attack' ? 300 : 340, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
           }
           buzz('tap');
+          if (def.planet && learn('planets', [def.planet]).length) pageNote([def.planet]);
           break;
         }
         case 'damage': {
@@ -361,7 +364,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
         case 'shuffle': float($('piles'), 'Shuffled', 'move'); await sleep(200); break;
         case 'yoga': {
           const y = YOGAS.find(x => x.id === ev.id)!;
-          const first = learnYoga(y.id);
+          const first = learn('yogas', [y.id]).length > 0;
           buzz('yoga'); sfx('yoga');
           await yogaBanner(y.name, `${yogaText(y)} ${yogaEffectText(y)}`, first);
           drawYou();

@@ -28,7 +28,11 @@ with sync_playwright() as p:
     pg.fill('#date', '1985-03-21'); pg.fill('#time', '06:45')
     pg.fill('#placeQ', 'colombo'); pg.wait_for_selector('#placeList li')
     pg.click('#placeList li >> nth=0')
-    pg.click('button.primary'); pg.wait_for_selector('.chart')
+    pg.click('button.primary'); pg.wait_for_selector('.reading')
+    # a new chart opens with its first reading: lagna and Moon, labelled
+    first = pg.inner_text('.reading')
+    assert 'Your first reading' in first and 'For entertainment and self-reflection.' in first, first
+    pg.click('#readBack'); pg.wait_for_selector('.chart')
     assert pg.inner_text('.class-head h1') == 'The Sage', pg.inner_text('.class-head h1')
     assert 'Colombo, Sri Lanka, UTC+05:30' in pg.inner_text('.born')
     sky = pg.inner_text('.sky')
@@ -93,7 +97,7 @@ with sync_playwright() as p:
     pg.click('#edit'); pg.click('#placeChange')
     pg.fill('#date', '1999-06-01'); pg.fill('#time', '')
     pg.click('#coordsOpen'); pg.fill('#coords', '7.05, 79.92'); pg.click('#coordsUse')
-    pg.click('button.primary'); pg.wait_for_selector('.chart')
+    pg.click('button.primary'); pg.wait_for_selector('.reading, .chart'); pg.locator('#readBack').click() if pg.locator('#readBack').count() else None; pg.wait_for_selector('.chart')
     assert 'Read from your Moon in' in pg.inner_text('.class-head .lead')
     assert 'UTC+06:00' in pg.inner_text('.born'), pg.inner_text('.born')
 
@@ -110,7 +114,7 @@ with sync_playwright() as p:
     pg2.wait_for_function("document.getElementById('placeState').textContent === ''", timeout=20000)
     pg2.fill('#date', '1985-03-21'); pg2.fill('#time', '06:45')
     pg2.fill('#placeQ', 'colombo'); pg2.wait_for_selector('#placeList li'); pg2.click('#placeList li >> nth=0')
-    pg2.click('button.primary'); pg2.wait_for_selector('.chart')
+    pg2.click('button.primary'); pg2.wait_for_selector('.reading, .chart'); pg2.locator('#readBack').click() if pg2.locator('#readBack').count() else None; pg2.wait_for_selector('.chart')
     sky2 = pg2.inner_text('.sky')
     assert 'Chandrashtama today' in sky2 and "Today's remedy, for Moon" in sky2, sky2
 

@@ -83,7 +83,7 @@ export function showHub(root: HTMLElement, ctx: HubContext): void {
       <h2>Lasting gifts</h2>
       <ul class="ups">${UPGRADES.map(u => {
         const lv = levelOf(m, u.id), cost = nextCost(m, u);
-        return `<li class="up">
+        return `<li class="gift-row">
           <div><b>${esc(u.name)}</b>${u.costs.length > 1 ? ` <span class="pips">${'●'.repeat(lv)}${'○'.repeat(u.costs.length - lv)}</span>` : ''}
           <p>${esc(u.text(Math.max(1, cost === null ? lv : lv + 1)))}</p></div>
           ${cost === null ? '<span class="owned">Yours</span>' : `<button class="ghost" data-up="${u.id}" ${m.karma < cost ? 'disabled' : ''}>${cost}</button>`}
