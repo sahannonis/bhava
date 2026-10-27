@@ -22,7 +22,7 @@ function savePeople(p: Person[]): void { try { localStorage.setItem(KEY, JSON.st
 
 const moonOf = (r: Reading) => ({ sign: r.chart.by.Moon.sign, lon: r.chart.by.Moon.lon });
 type System = 'porondam' | 'koota';
-/* Sri Lankan players see porondam first; everyone else the 36-point match. Both are always one tap away. */
+/* Which match shows first (both are always one tap away). Players born where porondam is the custom see it first. */
 const defaultSystem = (me: Reading): System => (me.birth.place.country === 'Sri Lanka' ? 'porondam' : 'koota');
 function porondamFor(me: Reading, p: Person, them: Reading) {
   const mine = sideOf(me), theirs = sideOf(them);
@@ -35,7 +35,7 @@ export function showCompat(root: HTMLElement, me: Reading, back: () => void): vo
   root.innerHTML = `<main class="leaf run-page compat">
     <p class="wordmark">Porondam and the 36-point match</p>
     <h1 class="house-title">Compatibility</h1>
-    <p class="lead">Add the people close to you, and see how your birth stars meet: by porondam, the Sri Lankan match of ten points, and by Ashtakoota, the 36-point match used across India.</p>
+    <p class="lead">Add the people close to you, and see how your birth stars meet: by porondam, the ten-point match, and by Ashtakoota, the 36-point match. Both are classic Vedic ways of comparing two birth Moons.</p>
     <ul class="journal-list">${people.map(p => {
       const them = castChart(p.birth), sys = defaultSystem(me);
       const t = ashtakoota(moonOf(me), moonOf(them)).total, po = porondamFor(me, p, them).score;

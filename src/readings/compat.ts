@@ -1,4 +1,4 @@
-/* Compatibility by Ashtakoota, the 36-point match still used across Sri Lanka and India.
+/* Compatibility by Ashtakoota, the classic 36-point Vedic match.
    It compares the two birth Moons: their signs and their nakshatras.
    The old rules score some parts differently for bride and groom; this game reads without gender,
    so where the two directions differ it takes the kinder score, and says so.

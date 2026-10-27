@@ -1,4 +1,4 @@
-/* Porondam, the Sri Lankan match: the dasa porondam, the ten core points, counted from the bride's
+/* Porondam, the ten-point match: the dasa porondam, the ten core points, counted from the bride's
    birth star to the groom's, as Sinhala and Tamil tradition do. Rajju and Yoni are the ones tradition
    treats most seriously. Kuja dosha (Mars) is checked the Sinhala way, from the lagna and the Moon.
    For entertainment and self-reflection. */
@@ -79,7 +79,7 @@ export const PORONDAM_TEXT: Record<string, [string, string, string]> = {
   rashi: ['Your Moon signs sit in a good relation: home life and family tend to grow.', '', 'Your Moon signs sit in a hard count from each other: family life asks for extra care.'],
   adhipathi: ['The lords of your Moon signs are friends: your minds meet easily.', 'The lords of your Moon signs are neutral to each other.', 'The lords of your Moon signs are at odds: you see the world differently, and respect bridges it.'],
   vashya: ['One Moon sign draws the other: there is natural attraction and mutual pull.', '', 'Neither Moon sign naturally draws the other: you choose each other on purpose.'],
-  rajju: ['Rajju is obtained: the two stars sit on different cords, the most important point for a long and safe marriage.', '', 'Rajju is not obtained: both stars share one cord. Sinhala tradition takes this very seriously, and families usually consult an astrologer on the whole charts.'],
+  rajju: ['Rajju is obtained: the two stars sit on different cords, the most important point for a long and safe marriage.', '', 'Rajju is not obtained: both stars share one cord. Tradition takes this very seriously, and families usually consult an astrologer on the whole charts.'],
   vedha: ['No vedha: the two stars do not strike each other.', '', 'Vedha: the two stars strike each other, which tradition reads as friction that must be soothed.'],
 };
 
@@ -95,7 +95,7 @@ export function kujaDosha(r: Reading): { has: boolean; from: string[] } {
 }
 
 export function porondamBand(score: number, essentialOk: boolean): { name: string; text: string } {
-  if (!essentialOk) return { name: 'An essential point is missing', text: 'Rajju or Yoni is not obtained. Whatever the total, Sri Lankan tradition asks for these two first, so this match is usually taken to an astrologer to read both full charts.' };
+  if (!essentialOk) return { name: 'An essential point is missing', text: 'Rajju or Yoni is not obtained. Whatever the total, tradition asks for these two first, so this match is usually taken to an astrologer to read both full charts.' };
   if (score >= 8) return { name: 'A very good porondam', text: 'Most of the ten points are obtained, including the essential ones. By the old measure, this is a well-matched pair.' };
   if (score >= 6) return { name: 'A good porondam', text: 'More than half the points are obtained, and the essential ones hold. This is what tradition looks for.' };
   return { name: 'A weak porondam', text: 'Fewer than half the points are obtained, though the essential ones hold. Families often look at the full charts before deciding.' };
