@@ -28,27 +28,34 @@ const owned = (list: { productIdentifier: string; purchaseState?: string }[]) =>
 /* On start: learn the local price, and check what Google Play says this account owns. */
 export async function initPurchases(): Promise<void> {
   if (!native()) return;
-  try {
-    const { product } = await NativePurchases.getProduct({ productIdentifier: PRODUCT, productType: PURCHASE_TYPE.INAPP });
-    if (product?.priceString) localStorage.setItem(PRICE_KEY, product.priceString);
-  } catch { /* offline, or the product isn't live yet */ }
+  await loadProduct(); // offline, or the product isn't live yet: no price shown
   try {
     const { purchases } = await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP });
     setOwned(owned(purchases)); // only changed when Google Play answered
   } catch { /* offline: keep what we knew */ }
 }
 
-async function buy(): Promise<'owned' | 'cancelled' | 'failed'> {
-  if (!native()) { setOwned(true); return 'owned'; }
+/* Ask Google Play for the product and its local price. False when Play doesn't offer it (yet). */
+async function loadProduct(): Promise<boolean> {
+  try {
+    const { product } = await NativePurchases.getProduct({ productIdentifier: PRODUCT, productType: PURCHASE_TYPE.INAPP });
+    if (product?.priceString) localStorage.setItem(PRICE_KEY, product.priceString);
+    return !!product;
+  } catch { return false; }
+}
+
+type BuyResult = { result: 'owned' | 'cancelled' | 'failed' | 'pending'; detail?: string };
+async function buy(): Promise<BuyResult> {
+  if (!native()) { setOwned(true); return { result: 'owned' }; }
   try {
     const t = await NativePurchases.purchaseProduct({ productIdentifier: PRODUCT, productType: PURCHASE_TYPE.INAPP });
-    if (t && (t.purchaseState === undefined || t.purchaseState === '1')) { setOwned(true); return 'owned'; }
-    return 'failed'; // pending payments (some cash methods) finish later and are picked up on the next start
+    if (t && (t.purchaseState === undefined || t.purchaseState === '1')) { setOwned(true); return { result: 'owned' }; }
+    return { result: 'pending' }; // some cash methods finish later; picked up on the next start
   } catch (e) {
-    const msg = String((e as Error)?.message ?? e).toLowerCase();
-    if (msg.includes('cancel')) return 'cancelled';
-    if (msg.includes('already') || msg.includes('owned')) { await restore(); return ownsFull() ? 'owned' : 'failed'; }
-    return 'failed';
+    const raw = String((e as Error)?.message ?? e), msg = raw.toLowerCase();
+    if (msg.includes('cancel')) return { result: 'cancelled' };
+    if (msg.includes('already') || msg.includes('owned')) { await restore(); return ownsFull() ? { result: 'owned' } : { result: 'failed', detail: raw }; }
+    return { result: 'failed', detail: raw };
   }
 }
 
@@ -88,12 +95,22 @@ export function openFullSheet(done: () => void): void {
   const success = () => { close(); sfx('yoga'); buzz('win'); done(); };
   el.querySelector('[data-close]')!.addEventListener('click', close);
   el.addEventListener('click', e => { if (e.target === el) close(); });
+  // refresh the price while the sheet is open; if Play doesn't offer the product, say so plainly
+  let offered = true;
+  if (native()) void loadProduct().then(ok => {
+    offered = ok;
+    if (ok && cachedPrice()) buyBtn.textContent = `Buy · ${cachedPrice()}`;
+    if (!ok) msg.textContent = 'Google Play is not offering the Full reading on this phone yet. If the app was just published, try again in a little while.';
+  });
   buyBtn.addEventListener('click', async () => {
     buyBtn.disabled = true; msg.textContent = 'Opening Google Play…';
+    if (native() && !offered) offered = await loadProduct();
     const r = await buy();
     buyBtn.disabled = false;
-    if (r === 'owned') return success();
-    msg.textContent = r === 'cancelled' ? '' : 'The purchase did not go through. Nothing was charged. Try again, or restore if you bought it before.';
+    if (r.result === 'owned') return success();
+    msg.textContent = r.result === 'cancelled' ? ''
+      : r.result === 'pending' ? 'Google Play is still confirming the payment. It will open here as soon as it clears.'
+      : `The purchase did not go through. Nothing was charged. Try again, or restore if you bought it before.${r.detail ? ` (Google Play said: ${r.detail.slice(0, 140)})` : ''}`;
   });
   el.querySelector('#fullRestore')?.addEventListener('click', async () => {
     msg.textContent = 'Checking Google Play…';
