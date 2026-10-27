@@ -1,6 +1,6 @@
 # Bhava: The Twelve Houses
 
-An astrology roguelite for Android by 12th House Protocol. Your real birth chart is the map: twelve houses, one run, then a reading of your own placements. A small sibling of Samsara, built on the same Vedic engine and ink look.
+An astrology roguelite for Android by Starward. Your real birth chart is the map: twelve houses, one run, then a reading of your own placements. A small sibling of Samsara, built on the same Vedic engine and ink look.
 
 ## Run it
 
@@ -19,7 +19,7 @@ npm run android      # builds the web app and copies it into android/
 npx cap open android # opens Android Studio (or File > Open the android folder yourself)
 ```
 
-The app id is `com.twelfthhouseprotocol.bhava`. It can never change once the app is on Google Play.
+The app id is `com.starward.bhava`. It can never change once the app is on Google Play.
 
 ## Quick preview
 

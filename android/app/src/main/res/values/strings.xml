@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Bhava</string>
     <string name="title_activity_main">Bhava</string>
-    <string name="package_name">com.twelfthhouseprotocol.bhava</string>
-    <string name="custom_url_scheme">com.twelfthhouseprotocol.bhava</string>
+    <string name="package_name">com.starward.bhava</string>
+    <string name="custom_url_scheme">com.starward.bhava</string>
 </resources>

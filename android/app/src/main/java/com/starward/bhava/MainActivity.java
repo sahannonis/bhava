@@ -1,4 +1,4 @@
-package com.twelfthhouseprotocol.bhava;
+package com.starward.bhava;
 
 import com.getcapacitor.BridgeActivity;
 

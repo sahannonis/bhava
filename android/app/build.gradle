@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.twelfthhouseprotocol.bhava"
+    namespace = "com.starward.bhava"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.twelfthhouseprotocol.bhava"
+        applicationId "com.starward.bhava"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
