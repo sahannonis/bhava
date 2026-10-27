@@ -400,7 +400,7 @@ body::after {
 .intent.attack { border-color: var(--mars); color: var(--mars); }
 .intent.attack svg { stroke: var(--mars); }
 .intent b { font-weight: 400; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
-.foe-figure svg { width: clamp(110px, 32vw, 150px); height: auto; overflow: visible; animation: hover 4s ease-in-out infinite; }
+.foe-figure svg { width: min(clamp(110px, 32vw, 150px), 17dvh); height: auto; overflow: visible; animation: hover 4s ease-in-out infinite; }
 .foe-figure .eye { fill: #fff1c8; filter: drop-shadow(0 0 4px rgba(255, 230, 160, 0.95)); }
 @keyframes hover { 50% { transform: translateY(-5px) scale(1.02); } }
 .foe-name { font-family: var(--display); font-size: 1.15rem; }
@@ -622,7 +622,7 @@ body::after {
 .run-stats { font-size: 0.95rem; color: var(--soot-soft); font-variant-numeric: tabular-nums; }
 .run-actions { display: grid; gap: 10px; margin-top: 10px; justify-items: stretch; }
 .run-actions .link { justify-self: center; }
-.foe.big .foe-figure svg { width: clamp(130px, 38vw, 170px); }
+.foe.big .foe-figure svg { width: min(clamp(130px, 38vw, 170px), 20dvh); }
 .tint-sun .eye { fill: #ffd56a; } .tint-moon .eye { fill: #e6f0ff; } .tint-mars .eye { fill: #ff8a5c; }
 .tint-mercury .eye { fill: #9be8b0; } .tint-jupiter .eye { fill: #ffc06a; } .tint-venus .eye { fill: #ffb3dc; }
 .tint-saturn .eye { fill: #a8b8ff; } .tint-rahu .eye { fill: #c9b0ff; } .tint-ketu .eye { fill: #f0c08e; }
@@ -710,7 +710,7 @@ body::after {
 /* ---------- Day 6b: pairs of foes, enraged foes ---------- */
 .foe-row:has(.foe + .foe) { gap: 4px; align-items: flex-end; }
 .foe-row:has(.foe + .foe) .foe { width: 49%; font-size: 0.92rem; }
-.foe-row:has(.foe + .foe) .foe-figure svg { width: clamp(84px, 25vw, 118px); }
+.foe-row:has(.foe + .foe) .foe-figure svg { width: min(clamp(84px, 25vw, 118px), 13dvh); }
 .foe-row:has(.foe + .foe) .intents { flex-wrap: wrap; justify-content: center; gap: 4px; }
 .foe-row:has(.foe + .foe) .foe-name { text-align: center; line-height: 1.1; }
 .foe.enraged .foe-figure svg { filter: drop-shadow(0 0 10px rgba(255, 90, 42, 0.85)); }
@@ -866,3 +866,16 @@ body::after {
 .full-list { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
 .full-list b { font-weight: 700; }
 .full-sheet .primary { margin-top: 4px; }
+
+/* short phones (about 640-700 px tall): tighten the fight so nothing overlaps */
+@media (max-height: 720px) {
+  .fight { gap: 4px; }
+  .ground-line { font-size: 0.78rem; line-height: 1.25; }
+  .hand { height: 140px; padding-top: 8px; margin-bottom: 16px; }
+  .card { height: 120px; }
+  .intents { min-height: 26px; }
+  .foe { gap: 3px; padding: 2px 0; }
+  .foe-name { font-size: 1rem; }
+  .pile { height: 50px; }
+  .end-turn { min-height: 46px; }
+}
