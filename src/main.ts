@@ -24,6 +24,7 @@ import { showJournal } from './journalView';
 import { showCompat } from './compatView';
 import { showTimeline } from './timelineView';
 import { initPurchases, ownsFull, openFullSheet, restore } from './purchase';
+import { initBackButton } from './backButton';
 import { showReading } from './readingView';
 import { firstReading } from './readings';
 import { showFight } from './combatView';
@@ -446,6 +447,7 @@ function starWheel(): string {
 unlockAudio();
 startStarlight();
 void initPurchases();
+initBackButton();
 loadBirth().then(b => (b ? showChart(castChart(b)) : showBirth(null)));
 
 /* A chart cast from the birth form opens with its first reading, then the map.

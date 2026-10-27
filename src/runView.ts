@@ -142,7 +142,9 @@ function storyStep(root: HTMLElement, ctx: RunContext) {
     <div class="scene" aria-hidden="true"><span></span><span></span><span></span></div>
     <p class="lead story-text">${esc(story.scene)}</p>
     <div class="choices">${story.options.map((op, i) => `<button class="choice" data-choice="${i}">${esc(op.label)}</button>`).join('')}</div>
-    <p class="run-stats">${run.hp} of ${run.maxHp} health · ${run.prana} prana</p>`);
+    <p class="run-stats">${run.hp} of ${run.maxHp} health · ${run.prana} prana</p>
+    <div class="run-actions"><button class="link" id="map">Back to your chart</button></div>`);
+  root.querySelector('#map')!.addEventListener('click', ctx.back);
   root.querySelectorAll<HTMLElement>('[data-choice]').forEach(el => el.addEventListener('click', () => {
     const op = story.options[+el.dataset.choice!];
     const notes = applyOutcome(run, op.outcome, rngAt(ctx, 700 + run.house));
