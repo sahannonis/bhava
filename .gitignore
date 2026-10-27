@@ -3,3 +3,8 @@ dist/
 preview/
 *.log
 .DS_Store
+
+# signing keys must never be committed
+*.jks
+*.keystore
+keystore.properties
