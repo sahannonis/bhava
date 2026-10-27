@@ -50,3 +50,24 @@ export function pickCard(title: string, ids: string[], opts: { note?: string; di
     });
   });
 }
+
+/* A sheet that just shows cards: your deck, or a fight's draw or discard pile. */
+export function viewCards(title: string, ids: string[], note = ''): void {
+  const sorted = [...ids].sort((a, b) => {
+    const A = CARDS[a], B = CARDS[b];
+    return (A.type === B.type ? 0 : A.type === 'attack' ? -1 : 1) || A.cost - B.cost || A.name.localeCompare(B.name) || levelOf(b) - levelOf(a);
+  });
+  const attacks = ids.filter(id => CARDS[id].type === 'attack').length, raised = ids.filter(id => levelOf(id) > 0).length;
+  const sheet = document.createElement('div');
+  sheet.className = 'sheet';
+  sheet.innerHTML = `<div class="sheet-card deck-view" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+      <div class="sheet-head"><h2>${esc(title)}</h2><button class="link" data-close>Close</button></div>
+      <p class="note">${ids.length} card${ids.length === 1 ? '' : 's'} · ${attacks} attack${attacks === 1 ? '' : 's'} · ${ids.length - attacks} skill${ids.length - attacks === 1 ? '' : 's'}${raised ? ` · ${raised} raised` : ''}${note ? `. ${esc(note)}` : ''}</p>
+      ${ids.length ? `<div class="card-grid">${sorted.map(id => cardFace(id, 'view')).join('')}</div>` : '<p class="hint">No cards here.</p>'}
+    </div>`;
+  document.body.appendChild(sheet);
+  sheet.addEventListener('click', e => {
+    const t = e.target as HTMLElement;
+    if (t.closest('[data-close]') || t === sheet) sheet.remove();
+  });
+}

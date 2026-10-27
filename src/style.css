@@ -879,3 +879,6 @@ body::after {
   .pile { height: 50px; }
   .end-turn { min-height: 46px; }
 }
+.deck-link { justify-self: start; margin-top: -6px; }
+.enter .deck-link { justify-self: center; margin: 2px 0 0; }
+.deck-view .card.view { cursor: default; }

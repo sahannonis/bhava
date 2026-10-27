@@ -28,6 +28,7 @@ import { initBackButton } from './backButton';
 import { showReading } from './readingView';
 import { firstReading } from './readings';
 import { showFight } from './combatView';
+import { viewCards } from './cardsView';
 import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
 import { getSettings, setSetting } from './settings';
 import { buzz } from './haptics';
@@ -268,7 +269,8 @@ function showChart(r: Reading) {
     <section class="panel" id="panel" aria-live="polite">${housePanel(r, selected, current)}</section>
     <div class="enter">
       ${run ? `<button class="primary" id="begin">Continue in the ${ordinal(run.house)} house</button>
-        <small>${run.hp} of ${run.maxHp} health · ${run.prana} prana · next: ${STEP_NAME[houseSteps(r, run, run.house)[run.step].kind].toLowerCase()}</small>`
+        <small>${run.hp} of ${run.maxHp} health · ${run.prana} prana · next: ${STEP_NAME[houseSteps(r, run, run.house)[run.step].kind].toLowerCase()}</small>
+        <button class="link deck-link" id="deck">Your deck (${run.deck.length})</button>`
         : `<button class="primary" id="begin">Begin your run${meta.lifeNext > 1 ? ` · life ${meta.lifeNext}` : ''}</button>
         <small>Walk your twelve houses in order, from the self to release.${cleared.length ? ` Cleared so far: ${cleared.length} of 12.` : ''}</small>`}
       <button class="ghost hub-link" id="hub"><span>The hub</span><small>${meta.karma} karma${meta.trialOpen ? " · today's trial is waiting" : meta.streak ? ` · ${meta.streak}-day streak` : ''}</small></button>
@@ -360,6 +362,7 @@ function showChart(r: Reading) {
   document.getElementById('enter')!.addEventListener('click', () => startPractice(r, sky));
   document.getElementById('begin')!.addEventListener('click', () => beginOrContinue(r, sky, run));
   document.getElementById('firstRead')?.addEventListener('click', () => { markFirstSeen(r); sfx('tap'); showReading(app, firstReading(r), { free: true, back: () => showChart(r), backLabel: 'Back to your chart' }); });
+  document.getElementById('deck')?.addEventListener('click', () => { sfx('tap'); viewCards('Your deck', run!.deck); });
   document.getElementById('hub')!.addEventListener('click', () => { sfx('tap'); openHub(r, sky); });
   document.getElementById('giveUp')?.addEventListener('click', e => {
     const b = e.target as HTMLButtonElement;

@@ -6,7 +6,7 @@ import { GROUND, HOUSE_OPENING, LORE, REMEDY, REST_GIFT } from './content';
 import { advance, applyOutcome, currentStep, houseSteps, PRANA, STEP_NAME, upgradeCard, type RunState, type Step } from './game/run';
 import { STORIES } from './game/stories';
 import { cardChoices, CUT_PRICE, price, SHARPEN_PRICE, SKIP_PRANA } from './game/rewards';
-import { cardFace, pickCard } from './cardsView';
+import { cardFace, pickCard, viewCards } from './cardsView';
 import { rngFor } from './rng';
 import { saveRun, endRun, markCleared } from './runStore';
 import { showFight } from './combatView';
@@ -35,9 +35,20 @@ export type RunContext = {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
+let deckOf: (() => string[]) | null = null; // the run being walked, for the deck button
 function page(root: HTMLElement, inner: string) {
   root.innerHTML = `<main class="leaf run-page">${inner}</main>`;
   window.scrollTo(0, 0);
+  // every run page with a stats line gets a way to look at the deck
+  const stats = root.querySelector('.run-stats');
+  if (stats && deckOf) {
+    const deck = deckOf();
+    const b = document.createElement('button');
+    b.className = 'link deck-link'; b.type = 'button';
+    b.textContent = `Your deck (${deck.length})`;
+    b.addEventListener('click', () => { sfx('tap'); viewCards('Your deck', deck); });
+    stats.insertAdjacentElement('afterend', b);
+  }
 }
 
 const stepList = (steps: Step[], at: number) => `<ol class="steps">${steps.map((s, i) =>
@@ -46,6 +57,7 @@ const stepList = (steps: Step[], at: number) => `<ol class="steps">${steps.map((
 /* Where the run picks up: the opening of a house, or straight into its next step. */
 export function continueRun(root: HTMLElement, ctx: RunContext): void {
   const { run } = ctx;
+  deckOf = () => run.deck;
   if (run.step === 0) houseOpening(root, ctx);
   else playStep(root, ctx);
 }

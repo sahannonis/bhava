@@ -7,7 +7,7 @@ import { learn } from './book';
 import { pageNote } from './readingView';
 import { buzz } from './haptics';
 import { sfx, sfxCard } from './sound';
-import { levelPips, nameFit } from './cardsView';
+import { levelPips, nameFit, viewCards } from './cardsView';
 import { getSettings, setSetting } from './settings';
 import {
   attackDamage, baseDamage, cantPlay, cardCost, endTurn, intentOf, playCard, startCombat,
@@ -471,8 +471,8 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     drawPiles();
     if (state.phase === 'player') guideOn('end');
   });
-  $('drawPile').addEventListener('click', () => tip(`${state.drawPile.length} cards left to draw. When it runs out, your discard pile is shuffled back in.`));
-  $('discardPile').addEventListener('click', () => tip(`${state.discard.length} cards played or discarded this round.${state.used.length ? ` ${state.used.length} used up for this fight.` : ''}`));
+  $('drawPile').addEventListener('click', () => { if (busy) return; sfx('tap'); viewCards('Draw pile', state.drawPile.map(c => c.id), 'Shown in order of type, not the order you will draw them. When it runs out, your discard pile is shuffled back in'); });
+  $('discardPile').addEventListener('click', () => { if (busy) return; sfx('tap'); viewCards('Discard pile', state.discard.map(c => c.id), state.used.length ? `${state.used.length} more used up for this fight` : ''); });
   $('leave').addEventListener('click', () => done({ result: 'left', hp: state.player.hp, turns: state.turn }));
 
   /* ---------- the guide, on the first fight ---------- */
