@@ -19,6 +19,9 @@ function note(text: string) {
 }
 
 export function handleBack(): 'handled' | 'exit' {
+  // 0. the chart guide closes like a sheet
+  const tour = document.querySelector<HTMLElement>('.tour [data-close]');
+  if (tour) { tour.click(); return 'handled'; }
   // 1. an open sheet (card picker, Full reading, Book page) closes first
   const sheets = document.querySelectorAll<HTMLElement>('.sheet');
   if (sheets.length) {

@@ -1005,3 +1005,14 @@ main.leaf, main.fight { animation: page-in 0.4s cubic-bezier(0.2, 0.8, 0.3, 1) b
 .look-opt { padding: 6px; border: 1.5px solid rgba(36, 30, 21, 0.45); border-radius: 12px; background: rgba(250, 241, 210, 0.4); cursor: pointer; }
 .look-opt img { display: block; width: 100%; height: auto; }
 .look-opt.on, .look-opt:active { border-color: #b8860b; box-shadow: 0 0 20px rgba(255, 200, 90, 0.7); }
+
+/* ---------- the chart guide, and Begin that floats ---------- */
+.tour { position: fixed; inset: 0; z-index: 85; pointer-events: none; }
+.tour .coach-ring { position: fixed; }
+.tour.waiting .coach-ring { animation: beckon 1.4s ease-in-out infinite; }
+.tour-box { position: fixed; max-width: 520px; margin: 0 auto; animation: fade-from 0.3s ease-out; }
+.tour-n { font-size: 0.85rem; color: var(--soot-soft); font-variant-numeric: tabular-nums; }
+.begin-float { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; padding: 10px var(--gutter) calc(env(safe-area-inset-bottom) + 12px);
+  background: linear-gradient(to top, var(--leaf) 55%, rgba(214, 194, 140, 0)); animation: fade-from 0.3s ease-out; }
+.begin-float[hidden] { display: none; }
+.begin-float .primary { width: 100%; max-width: 520px; display: block; margin: 0 auto; }

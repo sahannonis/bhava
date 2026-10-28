@@ -30,6 +30,7 @@ import { firstReading } from './readings';
 import { showFight } from './combatView';
 import { classArt } from './art';
 import { playOpening } from './opening';
+import { floatBegin, mapGuideWanted, startMapGuide } from './mapGuide';
 import { viewCards } from './cardsView';
 import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
 import { getSettings, setSetting, type Look } from './settings';
@@ -327,6 +328,7 @@ function showChart(r: Reading) {
         <label class="switch"><input type="checkbox" id="snd" ${getSettings().sound ? 'checked' : ''} /> <span>Sound</span></label>
         ${canRemind() ? `<label class="switch"><input type="checkbox" id="remind" ${getSettings().reminder ? 'checked' : ''} /> <span>Morning sky reminder, 8 am</span></label>` : ''}
         <button class="link" id="guideAgain">Show the fight guide again</button>
+        <button class="link" id="mapGuideAgain">Show the chart guide again</button>
         ${ownsFull() ? '<p class="hint">The Full reading is yours. Thank you.</p>' : '<button class="link" id="fullOpen">The Full reading</button><button class="link" id="fullRestoreMap">Restore a purchase</button><button class="link" id="codeOpen">I have a code</button>'}
       </div>
       <button class="link" id="forget">Forget my birth on this phone</button>
@@ -334,6 +336,10 @@ function showChart(r: Reading) {
   </main>`;
 
   wirePortrait(r);
+  floatBegin(app.querySelector<HTMLElement>('main')!);
+  document.getElementById('mapGuideAgain')!.addEventListener('click', () => { window.scrollTo(0, 0); startMapGuide(r); });
+  // the guide runs once, the first time the chart opens after the first reading
+  if (firstSeen(r) && mapGuideWanted()) setTimeout(() => { if (document.getElementById('map')?.isConnected) startMapGuide(r); }, 2600);
   document.getElementById('vibe')!.addEventListener('change', e => setSetting('vibration', (e.target as HTMLInputElement).checked));
   document.getElementById('vibeTest')!.addEventListener('click', () => buzz('win', true));
   document.getElementById('remind')?.addEventListener('change', async e => {

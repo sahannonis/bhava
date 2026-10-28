@@ -12,6 +12,8 @@ URL = 'http://localhost:4173/'
 with sync_playwright() as p:
     b = p.chromium.launch()
     ctx = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True, timezone_id='Asia/Colombo')
+    # the chart guide has its own check (tests/guide.py); skip it here
+    ctx.add_init_script("localStorage.setItem('bhava.settings', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('bhava.settings') || '{}'), {mapGuideDone: true})))")
     pg = ctx.new_page()
     # a fixed day: on 26 Oct 2026 the Moon is in Aries, the 2nd house from a Pisces lagna
     pg.clock.set_fixed_time('2026-10-26T09:00:00+05:30')
