@@ -1,4 +1,5 @@
 /* The hub: where karma is spent, the next life is chosen, and today's sky trial is faced. */
+import { placeArt } from './art';
 import type { Reading } from './seed';
 import { ordinal } from './seed';
 import type { Sky } from './today';
@@ -56,6 +57,7 @@ export function showHub(root: HTMLElement, ctx: HubContext): void {
   const lamps = Array.from({ length: 7 }, (_, i) => lamp(i < Math.min(streak, 7))).join('');
 
   root.innerHTML = `<main class="leaf run-page hub">
+    ${placeArt('hub') ? `<img class="place-art" src="${placeArt('hub')}" alt="" aria-hidden="true" />` : ''}
     <p class="wordmark">Between lives</p>
     <h1 class="house-title">The hub</h1>
     <p class="karma-big"><span>${m.karma}</span> karma to spend</p>

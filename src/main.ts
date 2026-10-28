@@ -28,6 +28,8 @@ import { initBackButton } from './backButton';
 import { showReading } from './readingView';
 import { firstReading } from './readings';
 import { showFight } from './combatView';
+import { classArt } from './art';
+import { playOpening } from './opening';
 import { viewCards } from './cardsView';
 import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
 import { getSettings, setSetting } from './settings';
@@ -255,6 +257,7 @@ function showChart(r: Reading) {
   <main class="leaf map-screen">
     <header class="class-head">
       <p class="wordmark">Bhava</p>
+      ${classArt(r.cls.ruler) ? `<img class="portrait" src="${classArt(r.cls.ruler)}" alt="" aria-hidden="true" />` : ''}
       <h1>${r.cls.name}</h1>
       <p class="lead">${r.timeKnown ? 'Your lagna is' : 'Read from your Moon in'} ${lagnaName}, ruled by ${r.cls.ruler}. ${r.cls.style}</p>
       ${r.timeKnown ? '' : '<p class="note">Without a birth time, your houses are read from the Moon. Add the time if you can find it.</p>'}
@@ -468,6 +471,7 @@ function starWheel(): string {
 /* ---------- start ---------- */
 unlockAudio();
 startStarlight();
+void playOpening();
 void initPurchases();
 initBackButton();
 loadBirth().then(b => (b ? showChart(castChart(b)) : showBirth(null)));

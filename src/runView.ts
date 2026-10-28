@@ -20,6 +20,8 @@ import { learn } from './book';
 import { houseReading, FREE_HOUSES, the } from './readings';
 import { readingHtml, pageNote } from './readingView';
 import { ownsFull, openFullSheet } from './purchase';
+import { placeArt } from './art';
+const placeImg = (p: 'hub' | 'shrine' | 'gate') => (placeArt(p) ? `<img class="place-art" src="${placeArt(p)}" alt="" aria-hidden="true" />` : '');
 
 export type RunContext = {
   reading: Reading;
@@ -66,6 +68,7 @@ function houseOpening(root: HTMLElement, ctx: RunContext) {
   const { reading: r, run } = ctx, n = run.house, h = r.houses[n - 1], g = GROUND[h.element], o = HOUSE_OPENING[n - 1];
   const fresh = [...learn('houses', [n]).map(() => `the ${ordinal(n)} house`), ...learn('signs', [h.sign]).map(() => h.signName)];
   page(root, `
+    ${n === 12 ? placeImg('gate') : ''}
     <p class="wordmark">The ${ordinal(n)} house</p>
     <h1 class="house-title">${esc(o.rules[0].toUpperCase() + o.rules.slice(1))}</h1>
     <p class="lead opening">${esc(o.text)}</p>
@@ -206,6 +209,7 @@ function restStep(root: HTMLElement, ctx: RunContext) {
     const canMeditate = !meditated && upgradable && (both || !usedOne);
     if (!upgradable && !meditated && !restNote) restNote = `Every card in your deck is at its highest level (${MAX_LEVEL + 1}).`;
     page(root, `
+      ${placeImg('shrine')}
       <p class="wordmark">The ${ordinal(run.house)} house · ${wayside ? 'a wayside rest' : 'a rest place'}</p>
       <div class="rest-head">${bigLamp}<h1 class="house-title">${wayside ? 'A lamp by the road' : 'A lamp is lit for you'}</h1></div>
       <p class="lead">${wayside
@@ -342,6 +346,7 @@ function runOver(root: HTMLElement, ctx: RunContext) {
 function runWonPage(root: HTMLElement, ctx: RunContext) {
   const k = settle(ctx, true), nl = k.newLife ? LIVES[k.newLife - 1] : null;
   page(root, `
+    ${placeImg('gate')}
     <p class="wordmark">Beyond the twelfth house</p>
     <h1 class="house-title glow">Released</h1>
     <p class="lead">You walked all twelve houses of your chart in ${k.life > 1 ? `your ${ordinal(k.life)} life` : 'one life'}. The whole-chart reading opens.</p>

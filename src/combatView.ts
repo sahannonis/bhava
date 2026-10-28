@@ -15,6 +15,8 @@ import {
 } from './game/combat';
 import { GROUND } from './content';
 import type { EnemyDef } from './game/enemies';
+import { art, enemyArt, groundArt } from './art';
+import { particles } from './particles';
 
 export type FightSetup = {
   title: string;          // e.g. "1st house, Pisces"
@@ -59,6 +61,16 @@ const lamp = (lit: boolean) => `<svg class="lamp${lit ? ' lit' : ''}" viewBox="0
   <path class="lamp-lip" d="M26 19 L30 16" />
 </svg>`;
 
+/* The colour each planet gives off, for sparks and trails. Cards of no planet burn plain gold. */
+export const GLOW: Record<string, string> = {
+  Sun: '#ffb81f', Moon: '#8fb8ff', Mars: '#ff5a2a', Mercury: '#33c072', Jupiter: '#ff9a1f',
+  Venus: '#ff6fb8', Saturn: '#5a78ff', Rahu: '#9a6bff', Ketu: '#d9893f',
+};
+const ELEMENT_GLOW: Record<string, string> = { fire: '#ff7a2a', earth: '#c08a3e', air: '#8ec5ff', water: '#2fb3a8' };
+const STATUS_GLOW: Record<StatusId, string> = { burn: '#ff7a1f', weak: '#9a6bff', exposed: '#9a6bff', might: '#ff5a2a', charmed: '#ff6fb8' };
+const GOLD = '#ffc94a', HURT = '#ff3d1f', HEAL = '#33c072', GUARD = '#5a78ff';
+const glowOf = (def: { planet?: string; element?: string }) => (def.planet ? GLOW[def.planet] : def.element ? ELEMENT_GLOW[def.element] : GOLD);
+
 const SPLAT = 'M50 8 C58 22 74 10 70 30 C88 28 92 46 76 52 C92 64 78 82 62 72 C62 92 42 94 40 76 C26 92 8 80 22 64 C4 60 6 40 24 40 C12 24 30 10 40 24 C40 12 46 6 50 8 Z';
 
 /* ---------- the screen ---------- */
@@ -73,6 +85,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
 
   root.innerHTML = `
   <main class="fight ground-${setup.ground}" aria-label="Fight">
+    ${groundArt(setup.ground) ? `<img class="ground-art" src="${groundArt(setup.ground)}" alt="" aria-hidden="true" />` : ''}
     <header class="fight-top">
       <button class="link" id="leave">Leave</button>
       <p class="fight-where">${esc(setup.title)}</p>
@@ -84,7 +97,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     <section class="hand" id="hand" aria-label="Your hand"></section>
     <footer class="fight-bottom">
       <div class="piles" id="piles">
-        <button class="pile" id="drawPile" aria-label="Draw pile"><span class="pile-stack"></span><b id="drawN">0</b><small>draw</small></button>
+        <button class="pile" id="drawPile" aria-label="Draw pile"><span class="pile-stack"${art('card-back') ? ` style="background:url(${art('card-back')}) center/cover"` : ''}></span><b id="drawN">0</b><small>draw</small></button>
         <button class="pile" id="discardPile" aria-label="Discard pile"><span class="pile-stack discard"></span><b id="discardN">0</b><small>discard</small></button>
       </div>
       <button class="primary end-turn" id="end">End turn</button>
@@ -98,6 +111,16 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
   const fightEl = root.querySelector<HTMLElement>('.fight')!;
   const foeEl = (i: number) => root.querySelector<HTMLElement>(`[data-foe="${i}"]`);
   const whoEl = (w: Who | 'burn') => (w === 'player' ? $('you') : typeof w === 'number' ? foeEl(w) : null);
+  const fx = particles(fightEl);
+  fx.setWeather(setup.ground);
+  /* the middle of an element, in the fight's own coordinates */
+  const at = (el: Element | null, yFrac = 0.45) => {
+    if (!el) return null;
+    const r = el.getBoundingClientRect(), box = fightEl.getBoundingClientRect();
+    return { x: r.left - box.left + r.width / 2, y: r.top - box.top + r.height * yFrac };
+  };
+  const figureOf = (w: Who | 'burn') => (typeof w === 'number' ? foeEl(w)?.querySelector('.foe-figure') ?? null : w === 'player' ? $('you').querySelector('.hp') : null);
+  let lastGlow = GOLD; // the colour of the card that just landed
 
   /* ---------- drawing ---------- */
   const statusChips = (st: Partial<Record<StatusId, number>>) => (Object.keys(st) as StatusId[])
@@ -133,11 +156,13 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
       return `<div class="foe ${tint}${e.def.rank === 'boss' || e.def.rank === 'gate' ? ' big' : ''}${dead ? ' gone' : ''}${e.enraged ? ' enraged' : ''}${selected !== null && CARDS[state.hand[selected]?.id]?.target === 'enemy' && !dead ? ' aim' : ''}" data-foe="${i}"
           role="button" tabindex="0" aria-label="${esc(e.name)}, ${e.hp} of ${e.maxHp} health${e.block ? `, ${e.block} block` : ''}. Next it will ${intentWords(it)}.">
         <div class="intents">${intentHtml(it)}</div>
-        <div class="foe-figure"><svg viewBox="0 0 120 120" aria-hidden="true">
+        <div class="foe-figure${enemyArt(e.def) ? ' painted' : ''}" style="--aura:${glowOf(e.def)}">${enemyArt(e.def)
+          ? `<img class="foe-art" src="${enemyArt(e.def)}" alt="" draggable="false" />`
+          : `<svg viewBox="0 0 120 120" aria-hidden="true">
           <defs><radialGradient id="ink-${i}"><stop offset="0" stop-color="#241e15" stop-opacity="0.95" /><stop offset="0.62" stop-color="#241e15" stop-opacity="0.85" /><stop offset="1" stop-color="#241e15" stop-opacity="0" /></radialGradient></defs>
           <circle cx="60" cy="62" r="52" fill="url(#ink-${i})" />
           <ellipse class="eye" cx="46" cy="56" rx="5" ry="3.2" /><ellipse class="eye" cx="74" cy="56" rx="5" ry="3.2" />
-        </svg></div>
+        </svg>`}</div>
         <p class="foe-name">${esc(e.name)}</p>
         <div class="stats">${bar(e.hp, e.maxHp)}${e.block ? `<span class="chip blockchip">${ICON.shield}<span>${e.block}</span></span>` : ''}${statusChips(e.status)}</div>
       </div>`;
@@ -246,9 +271,10 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     );
   };
 
-  async function banner(text: string) {
+  async function banner(text: string, side: 'mine' | 'theirs' = 'mine') {
     const b = $('banner');
     b.textContent = text;
+    b.dataset.side = side;
     b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
     await sleep(650);
   }
@@ -287,7 +313,7 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     for (const ev of events) {
       switch (ev.t) {
         case 'turn':
-          if (ev.who === 'enemy') { sfx('enemyTurn'); await banner('Their turn'); }
+          if (ev.who === 'enemy') { sfx('enemyTurn'); await banner('Their turn', 'theirs'); }
           else if (ev.turn > 1) { sfx('turn'); await banner('Your turn'); }
           break;
         case 'play': {
@@ -301,8 +327,19 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
             const pull = def.type === 'attack' ? [{ transform: 'translate(0,0) scale(1.08)' }, { transform: 'translate(0,14px) scale(1.04)', offset: 0.22 }, { transform: `translate(${dx}px,${dy}px) scale(0.45) rotate(${dx > 0 ? 18 : -18}deg)`, opacity: 0.2 }]
               : [{ transform: 'translate(0,0) scale(1.08)' }, { transform: `translate(${dx * 0.3}px,${dy - 30}px) scale(0.7)`, opacity: 0 }];
             sfxCard(def.planet);
+            lastGlow = glowOf(def);
+            const glow = lastGlow;
+            const tr = setInterval(() => { const p = at(cardEl, 0.4); if (p) fx.trail(p.x, p.y, glow); }, 24);
             await cardEl.animate(pull, { duration: def.type === 'attack' ? 300 : 340, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' }).finished;
-          }
+            clearInterval(tr);
+            const hit = at(def.type === 'attack' && target ? target.querySelector('.foe-figure') ?? target : target, 0.5);
+            if (hit) {
+              fx.ring(hit.x, hit.y, glow, def.type === 'attack' ? 70 : 54);
+              fx.burst(def.type === 'attack'
+                ? { x: hit.x, y: hit.y, color: glow, count: 22, speed: 300, gravity: 320 }
+                : { x: hit.x, y: hit.y, color: glow, count: 14, speed: 120, gravity: -90, shape: 'dot', life: 0.9 });
+            }
+          } else lastGlow = glowOf(def);
           buzz('tap');
           if (def.planet && learn('planets', [def.planet]).length) pageNote([def.planet]);
           break;
@@ -317,6 +354,14 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
             float(el, ev.from === 'burn' ? `${ev.amount}` : `−${ev.amount}`, ev.from === 'burn' ? 'burnt' : ev.to === 'player' ? 'hurt' : 'dealt');
             splat(el, ev.amount >= 10);
             shake(el, ev.amount >= 10);
+            const fig = figureOf(ev.to), p = at(fig ?? el, 0.5);
+            const col = ev.from === 'burn' ? STATUS_GLOW.burn : ev.to === 'player' ? HURT : lastGlow;
+            if (p) fx.burst({ x: p.x, y: p.y, color: col, count: ev.amount >= 10 ? 34 : 18, speed: ev.amount >= 10 ? 420 : 280, size: ev.amount >= 10 ? 9 : 7 });
+            if (fig && !still()) (fig as HTMLElement).animate([
+              { filter: 'brightness(2.4) saturate(0)', transform: 'translate(0,0)' },
+              { filter: 'brightness(1.4) sepia(1) saturate(5) hue-rotate(-35deg)', transform: `translate(0,${ev.to === 'player' ? 0 : -6}px) scale(0.96)` },
+              { filter: 'none', transform: 'none' },
+            ], { duration: 300, easing: 'ease-out' });
             if (ev.amount >= 10) shake(fightEl);
             if (ev.to === 'player') { fightEl.classList.remove('ouch'); void fightEl.offsetWidth; fightEl.classList.add('ouch'); }
             buzz(ev.amount >= 10 ? 'big' : 'hit');
@@ -325,13 +370,26 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
           await sleep(ev.from === 'burn' ? 380 : 300);
           break;
         }
-        case 'block': float(whoEl(ev.who), `+${ev.amount} block`, 'guarded'); sfx('block'); await sleep(240); break;
+        case 'block': {
+          float(whoEl(ev.who), `+${ev.amount} block`, 'guarded'); sfx('block');
+          const p = at(figureOf(ev.who) ?? whoEl(ev.who), 0.5);
+          if (p) { fx.ring(p.x, p.y, GUARD, 46); fx.burst({ x: p.x, y: p.y, color: GUARD, count: 10, speed: 90, gravity: -40, shape: 'dot', life: 0.8 }); }
+          await sleep(240); break;
+        }
         case 'heal': {
           const f = ev.who === 'player' ? shown.player : shown.enemies[ev.who as number];
           f.hp += ev.amount; nudgeBar(ev.who);
-          float(whoEl(ev.who), `+${ev.amount}`, 'healed'); sfx('heal'); await sleep(260); break;
+          float(whoEl(ev.who), `+${ev.amount}`, 'healed'); sfx('heal');
+          const p = at(figureOf(ev.who) ?? whoEl(ev.who), 0.6);
+          if (p) fx.burst({ x: p.x, y: p.y, color: HEAL, count: 16, speed: 70, gravity: -110, shape: 'dot', life: 1.1, spread: Math.PI });
+          await sleep(260); break;
         }
-        case 'status': float(whoEl(ev.who), `${STATUS_INFO[ev.status].name} ${ev.amount}`, `st st-${ev.status}`); sfx(ev.status === 'burn' ? 'burn' : 'status'); await sleep(260); break;
+        case 'status': {
+          float(whoEl(ev.who), `${STATUS_INFO[ev.status].name} ${ev.amount}`, `st st-${ev.status}`); sfx(ev.status === 'burn' ? 'burn' : 'status');
+          const p = at(figureOf(ev.who) ?? whoEl(ev.who), 0.5);
+          if (p) fx.burst({ x: p.x, y: p.y, color: STATUS_GLOW[ev.status], count: 12, speed: 140, gravity: ev.status === 'burn' ? -120 : 160, shape: ev.status === 'burn' ? 'dot' : 'spark' });
+          await sleep(260); break;
+        }
         case 'move': {
           const el = foeEl(ev.who);
           float(el, ev.name, 'move');
@@ -344,6 +402,11 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
           if (ev.who !== 'player') {
             sfx('death');
             const el = foeEl(ev.who as number);
+            const p = at(el?.querySelector('.foe-figure') ?? el, 0.5);
+            if (p) {
+              fx.burst({ x: p.x, y: p.y, color: '#241e15', count: 26, speed: 120, gravity: -70, shape: 'ink', size: 12, life: 1.3, drag: 0.94 });
+              fx.burst({ x: p.x, y: p.y, color: glowOf(state.enemies[ev.who as number].def), count: 24, speed: 200, gravity: -60, shape: 'dot', life: 1.4 });
+            }
             if (el && !still()) await el.animate([{ filter: 'blur(0)', opacity: 1, transform: 'scale(1)' }, { filter: 'blur(8px)', opacity: 0, transform: 'scale(1.25) translateY(-10px)' }], { duration: 750, easing: 'ease-in', fill: 'forwards' }).finished;
           }
           break;
@@ -366,6 +429,12 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
           const y = YOGAS.find(x => x.id === ev.id)!;
           const first = learn('yogas', [y.id]).length > 0;
           buzz('yoga'); sfx('yoga');
+          {
+            const box = fightEl.getBoundingClientRect(), cx = box.width / 2, cy = box.height * 0.4;
+            const cols = y.planets.flat().map(pl => GLOW[pl]).filter(Boolean).slice(0, 3);
+            fx.ring(cx, cy, GOLD, 160);
+            (cols.length ? cols : [GOLD]).forEach((c, k) => setTimeout(() => fx.burst({ x: cx, y: cy, color: c, count: 26, speed: 320, gravity: 60, shape: 'dot', life: 1.3 }), k * 120));
+          }
           await yogaBanner(y.name, `${yogaText(y)} ${yogaEffectText(y)}`, first);
           drawYou();
           break;
@@ -391,6 +460,9 @@ export function showFight(root: HTMLElement, setup: FightSetup, done: (r: FightR
     drawPiles();
     buzz(result === 'won' ? 'win' : 'lose');
     sfx(result === 'won' ? 'win' : 'lose');
+    const box = fightEl.getBoundingClientRect();
+    if (result === 'won') for (let k = 0; k < 5; k++) setTimeout(() => fx.burst({ x: box.width * (0.15 + Math.random() * 0.7), y: box.height * (0.15 + Math.random() * 0.25), color: k % 2 ? GOLD : '#fff0b8', count: 18, speed: 240, gravity: 220, shape: 'dot', life: 1.6 }), k * 140);
+    else { const p = at($('you'), 0.5); if (p) fx.burst({ x: p.x, y: p.y, color: '#241e15', count: 30, speed: 160, gravity: -40, shape: 'ink', size: 14, life: 1.6 }); }
     await sleep(400);
     const over = document.createElement('div');
     over.className = `over ${result}`;

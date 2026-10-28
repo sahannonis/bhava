@@ -25,7 +25,7 @@ const PLANETS_AT: Record<number, [number, number, number, Flow]> = { // x, y, pe
   3: [34, 100, 2, 'mid'], 5: [34, 300, 2, 'mid'], 9: [366, 300, 2, 'mid'], 11: [366, 100, 2, 'mid'],
 };
 
-const LINES = 'M2 2H398V398H2Z M2 2L398 398 M398 2L2 398 M200 2L398 200L200 398L2 200Z';
+export const LINES = 'M2 2H398V398H2Z M2 2L398 398 M398 2L2 398 M200 2L398 200L200 398L2 200Z';
 
 const DEFS = `<defs>
   <pattern id="hatch-fight" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="9" /></pattern>

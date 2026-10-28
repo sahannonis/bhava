@@ -58,6 +58,14 @@ npm run build:preview   # one self-contained page in preview/
 - Readings are labelled "for entertainment and self-reflection".
 - No new features once building starts; ideas go on the parked list in the spec.
 
+## Adding the painted art
+
+1. Save each finished image from the image tool into `art-src/`, named exactly as in the spec (`class-jupiter.png`, `enemy-rahu.png`, `spirit-ember-imp.png`, `ground-water.png`, `place-hub.png`, `card-back.png` ...).
+2. Run `npm run art`. It lifts the plain parchment out of each picture so the figure sits on the game's own leaf, shrinks it, and writes a small `.webp` into `src/art/`.
+3. Build as usual (`npm run android`). Anything not there yet keeps the ink drawn in code, so images can arrive a few at a time.
+
+The originals in `art-src/` are not committed (they are large); the `.webp` files in `src/art/` are.
+
 ## Build log
 
 - **Day 1 (24 Oct 2026):** project shell (Vite, TypeScript, Capacitor 8, Android target API 36), the engine copied in, birth entry with offline place search and map coordinates, the chart and the twelve-house seed on screen, birth kept on the phone.
@@ -74,3 +82,5 @@ npm run build:preview   # one self-contained page in preview/
 - **Play setup (27 Oct 2026):** app id changed to `com.starward.bhava` before the first upload; a privacy policy page in `docs/privacy.html` (served by GitHub Pages); the launcher icon, round icon, adaptive icon and splash screens replaced with the lamp-in-the-chart mark on parchment; the fight screen tightened for short phones (about 640 px tall) so the foe, the ground line and the hand never overlap.
 - **1.0.1 (27 Oct 2026):** the phone's back button steps back through the game (closes a sheet, leaves a reading, returns to the chart; twice to leave a fight) instead of closing the app, and sends the app to the background from the chart. The purchase sheet now shows Google Play's own reason when a purchase fails.
 - **1.0.3 (28 Oct 2026):** never more than two houses in a row without rest: when a chart crowds planets into house after house, the third such house ends with a wayside rest (before the gate in the 12th), shown on the map. Deck viewer on the chart, every run page and the fight's draw and discard piles. Portrait lock and a parchment launch screen.
+- **1.0.4 (28 Oct 2026):** a private code for Google Play's reviewers ("I have a code" in the map's settings) that opens the Full reading on their device; only its hash is in the app.
+- **Day 11, 1.0.5 (28 Oct 2026):** an animated opening after the launch screen (the leaf dims, a lamp is struck, the chart draws itself in gold with a star in each house, the name rises; a tap skips it, and it is quicker after the first time). Colour in the fight: every planet's cards carry its colour, played cards leave a trail of light and land in a burst of sparks and a ring, hits flash the foe, block, healing and statuses each have their own light, a fallen foe lifts off as ink and gold, a yoga throws out its planets' colours, winning showers gold. Each ground has its own weather drifting low behind the fight (embers, dust, wind, mist) and tints the bottom of the leaf. Foes stand in a breathing aura of their planet's colour, health bars and intents are coloured, turn banners sit on a brush stroke (gold for you, red for them), and every new page turns in gently. Slots for the painted art: put the PNGs in `art-src/` and run `npm run art`.

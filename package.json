@@ -7,13 +7,15 @@
     "build": "tsc && vite build",
     "build:preview": "vite build --mode preview",
     "test": "node --test tests/engine.test.cjs && node --import tsx --test tests/rng.test.ts tests/combat.test.ts tests/run.test.ts tests/day6.test.ts tests/day7.test.ts tests/day8.test.ts tests/day9.test.ts",
-    "android": "npm run build && npx cap sync android"
+    "android": "npm run build && npx cap sync android",
+    "art": "node scripts/art.mjs"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
     "@playwright/test": "^1.64.1",
+    "sharp": "^0.34.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",

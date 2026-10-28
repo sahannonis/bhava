@@ -8,3 +8,4 @@ preview/
 *.jks
 *.keystore
 keystore.properties
+art-src/

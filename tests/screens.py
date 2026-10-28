@@ -21,6 +21,9 @@ with sync_playwright() as p:
 
     # 1. a known birth with a time
     pg.goto(URL)
+    # the opening plays over the app; a tap skips it
+    pg.wait_for_selector('#opening'); pg.locator('#opening').dispatch_event('pointerdown')
+    pg.wait_for_selector('#opening', state='detached')
     pg.wait_for_function("document.getElementById('placeState').textContent === ''", timeout=20000)
     pg.screenshot(path=f'{OUT}/birth.png', full_page=True)
     pg.click('button.primary')

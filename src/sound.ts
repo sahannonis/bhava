@@ -5,7 +5,7 @@ import { getSettings } from './settings';
 
 export type Sfx =
   | 'tap' | 'draw' | 'card' | 'hit' | 'bigHit' | 'block' | 'heal' | 'burn' | 'status'
-  | 'yoga' | 'turn' | 'enemyTurn' | 'win' | 'lose' | 'buy' | 'upgrade' | 'death';
+  | 'yoga' | 'turn' | 'enemyTurn' | 'win' | 'lose' | 'buy' | 'upgrade' | 'death' | 'open';
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -120,6 +120,13 @@ export function sfx(kind: Sfx): void {
       [[196, 0.22], [198.5, 0.22], [392 * 1.003, 0.09], [588, 0.05]].forEach(([f, v]) =>
         tone(c, t, { f: f * r, dur: 3.2, vol: v, attack: 0.02 }));
       bell(c, t, 784 * r, 0.08, 1.5);
+      break;
+    case 'open':
+      // a match struck, then a singing bowl swelling as the lamp takes
+      noise(c, t, { dur: 0.16, vol: 0.07, freq: 3200, q: 0.9, to: 1800 });
+      [[147, 0.16], [148.6, 0.16], [294 * 1.004, 0.07], [441, 0.035]].forEach(([f, v]) =>
+        tone(c, t, { f, at: 0.18, dur: 4.2, vol: v, attack: 0.6 }));
+      bell(c, t + 1.7, 588, 0.06, 2.2);
       break;
     case 'turn':
       // a small gong for your turn
