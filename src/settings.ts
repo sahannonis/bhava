@@ -1,5 +1,7 @@
 /* Small player settings, kept on the phone. */
-export type Settings = { vibration: boolean; sound: boolean; reminder: boolean; guideDone: boolean };
+export type Look = 'f' | 'm';
+/* look: which of the two portraits of your class you chose (none until you choose) */
+export type Settings = { vibration: boolean; sound: boolean; reminder: boolean; guideDone: boolean; look?: Look };
 const KEY = 'bhava.settings';
 const DEFAULTS: Settings = { vibration: true, sound: true, reminder: false, guideDone: false };
 

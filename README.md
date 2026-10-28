@@ -60,7 +60,7 @@ npm run build:preview   # one self-contained page in preview/
 
 ## Adding the painted art
 
-1. Save each finished image from the image tool into `art-src/`, named exactly as in the spec (`class-jupiter.png`, `enemy-rahu.png`, `spirit-ember-imp.png`, `ground-water.png`, `place-hub.png`, `card-back.png` ...).
+1. Save each finished image from the image tool into `art-src/`, named exactly as in the spec (`class-jupiter-f.png`, `class-jupiter-m.png`, `enemy-rahu.png`, `spirit-ember-imp.png`, `ground-water.png`, `place-hub.png`, `card-back.png` ...).
 2. Run `npm run art`. It lifts the plain parchment out of each picture so the figure sits on the game's own leaf, shrinks it, and writes a small `.webp` into `src/art/`.
 3. Build as usual (`npm run android`). Anything not there yet keeps the ink drawn in code, so images can arrive a few at a time.
 
@@ -84,3 +84,4 @@ The originals in `art-src/` are not committed (they are large); the `.webp` file
 - **1.0.3 (28 Oct 2026):** never more than two houses in a row without rest: when a chart crowds planets into house after house, the third such house ends with a wayside rest (before the gate in the 12th), shown on the map. Deck viewer on the chart, every run page and the fight's draw and discard piles. Portrait lock and a parchment launch screen.
 - **1.0.4 (28 Oct 2026):** a private code for Google Play's reviewers ("I have a code" in the map's settings) that opens the Full reading on their device; only its hash is in the app.
 - **Day 11, 1.0.5 (28 Oct 2026):** an animated opening after the launch screen (the leaf dims, a lamp is struck, the chart draws itself in gold with a star in each house, the name rises; a tap skips it, and it is quicker after the first time). Colour in the fight: every planet's cards carry its colour, played cards leave a trail of light and land in a burst of sparks and a ring, hits flash the foe, block, healing and statuses each have their own light, a fallen foe lifts off as ink and gold, a yoga throws out its planets' colours, winning showers gold. Each ground has its own weather drifting low behind the fight (embers, dust, wind, mist) and tints the bottom of the leaf. Foes stand in a breathing aura of their planet's colour, health bars and intents are coloured, turn banners sit on a brush stroke (gold for you, red for them), and every new page turns in gently. Slots for the painted art: put the PNGs in `art-src/` and run `npm run art`.
+- **1.0.6 (28 Oct 2026):** two portraits for every class, feminine and masculine. Once both are painted, the chart asks which one feels like you (a picture, not a question about who you are) and remembers it; tap your portrait to change it.

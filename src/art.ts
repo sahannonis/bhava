@@ -18,6 +18,11 @@ export function enemyArt(def: Pick<EnemyDef, 'id' | 'rank' | 'planet'>): string 
   if (def.planet) return art(`enemy-${def.planet.toLowerCase()}`);
   return art(`spirit-${kebab(def.id)}`);
 }
-export const classArt = (ruler: string) => art(`class-${ruler.toLowerCase()}`);
+/* Each class has two portraits, feminine (-f) and masculine (-m); the player picks one.
+   A single unsuffixed portrait, if that is all there is, is used for everyone. */
+export function classArt(ruler: string): { f?: string; m?: string; one?: string } {
+  const k = ruler.toLowerCase();
+  return { f: art(`class-${k}-f`), m: art(`class-${k}-m`), one: art(`class-${k}`) };
+}
 export const groundArt = (element: string) => art(`ground-${element}`);
 export const placeArt = (place: 'hub' | 'shrine' | 'gate') => art(`place-${place}`);

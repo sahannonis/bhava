@@ -32,7 +32,7 @@ import { classArt } from './art';
 import { playOpening } from './opening';
 import { viewCards } from './cardsView';
 import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
-import { getSettings, setSetting } from './settings';
+import { getSettings, setSetting, type Look } from './settings';
 import { buzz } from './haptics';
 import { loadRun, saveRun, nextRunNumber, endRun, loadCleared } from './runStore';
 import { newRun, houseSteps, STEP_NAME, waysideHouses, type RunState } from './game/run';
@@ -238,6 +238,32 @@ const LEGEND_BIRTH = `<li>${SWATCH('fight')}Fight</li><li>${SWATCH('boss')}Boss<
       <li><svg class="swatch" viewBox="0 0 18 18" aria-hidden="true"><line class="here-mark" x1="2" y1="9" x2="17" y2="9" /></svg>You are here</li>`;
 const LEGEND_SKY = `<li><svg class="swatch" viewBox="0 0 18 18" aria-hidden="true"><line class="hard-mark" x1="2" y1="12" x2="16" y2="12" /></svg>Underlined: a hard place for your Moon today</li>`;
 
+/* The class portrait. With both portraits painted, the player chooses once (and can change it by
+   tapping); nothing is asked about who they are, only which picture feels like them. */
+function portraitHtml(r: Reading, choosing = false): string {
+  const p = classArt(r.cls.ruler), look = getSettings().look;
+  if (p.f && p.m) {
+    if (!look || choosing) return `<div class="look-pick" role="group" aria-label="Choose your portrait">
+        <p>How does ${esc(r.cls.name)} look to you?</p>
+        <div class="look-row">${(['f', 'm'] as const).map(k => `<button class="look-opt${look === k ? ' on' : ''}" data-look="${k}" aria-label="${k === 'f' ? 'This portrait (feminine)' : 'This portrait (masculine)'}"><img src="${p[k]}" alt="" /></button>`).join('')}</div>
+        <small>Tap one. You can change it any time by tapping your portrait.</small>
+      </div>`;
+    return `<button class="portrait-btn" id="portraitBtn" aria-label="Change your portrait"><img class="portrait" src="${p[look]}" alt="" /></button>`;
+  }
+  const one = p.one ?? p.f ?? p.m;
+  return one ? `<img class="portrait" src="${one}" alt="" aria-hidden="true" />` : '';
+}
+function wirePortrait(r: Reading): void {
+  const box = document.getElementById('portraitBox');
+  if (!box) return;
+  box.onclick = e => {
+    const t = e.target as Element;
+    const opt = t.closest<HTMLElement>('[data-look]');
+    if (opt) { setSetting('look', opt.dataset.look as Look); sfx('tap'); box.innerHTML = portraitHtml(r); return; }
+    if (t.closest('#portraitBtn')) { sfx('tap'); box.innerHTML = portraitHtml(r, true); }
+  };
+}
+
 function showChart(r: Reading) {
   const local = new Intl.DateTimeFormat('en-GB', {
     timeZone: r.birth.place.tz, day: 'numeric', month: 'long', year: 'numeric',
@@ -257,7 +283,7 @@ function showChart(r: Reading) {
   <main class="leaf map-screen">
     <header class="class-head">
       <p class="wordmark">Bhava</p>
-      ${classArt(r.cls.ruler) ? `<img class="portrait" src="${classArt(r.cls.ruler)}" alt="" aria-hidden="true" />` : ''}
+      <div id="portraitBox">${portraitHtml(r)}</div>
       <h1>${r.cls.name}</h1>
       <p class="lead">${r.timeKnown ? 'Your lagna is' : 'Read from your Moon in'} ${lagnaName}, ruled by ${r.cls.ruler}. ${r.cls.style}</p>
       ${r.timeKnown ? '' : '<p class="note">Without a birth time, your houses are read from the Moon. Add the time if you can find it.</p>'}
@@ -307,6 +333,7 @@ function showChart(r: Reading) {
     </footer>
   </main>`;
 
+  wirePortrait(r);
   document.getElementById('vibe')!.addEventListener('change', e => setSetting('vibration', (e.target as HTMLInputElement).checked));
   document.getElementById('vibeTest')!.addEventListener('click', () => buzz('win', true));
   document.getElementById('remind')?.addEventListener('change', async e => {

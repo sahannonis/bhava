@@ -998,3 +998,10 @@ main.leaf, main.fight { animation: page-in 0.4s cubic-bezier(0.2, 0.8, 0.3, 1) b
 .op-title h1 { font-size: clamp(3.2rem, 17vw, 5rem); letter-spacing: 0.08em; line-height: 1; text-shadow: 0 1.2px 0 var(--cut-light), 0 0 30px rgba(255, 200, 90, 0.9); }
 .op-title p { font-family: var(--display); font-size: 1.1rem; letter-spacing: 0.12em; color: var(--soot-soft); margin-top: 8px; }
 @keyframes op-title { to { opacity: 1; transform: none; filter: blur(0); } }
+.portrait-btn { display: block; margin: 0 auto; padding: 0; border: 0; background: none; cursor: pointer; }
+.look-pick { display: grid; gap: 8px; justify-items: center; text-align: center; margin: 8px 0 6px; animation: portrait-in 0.8s ease-out backwards; }
+.look-pick p { font-family: var(--display); font-size: 1.15rem; }
+.look-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 420px; }
+.look-opt { padding: 6px; border: 1.5px solid rgba(36, 30, 21, 0.45); border-radius: 12px; background: rgba(250, 241, 210, 0.4); cursor: pointer; }
+.look-opt img { display: block; width: 100%; height: auto; }
+.look-opt.on, .look-opt:active { border-color: #b8860b; box-shadow: 0 0 20px rgba(255, 200, 90, 0.7); }
