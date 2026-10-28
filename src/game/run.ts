@@ -23,7 +23,7 @@ function forLife(def: EnemyDef, life: number): EnemyDef {
 }
 
 export type StepKind = 'lesser' | 'story' | 'planet' | 'boss' | 'rest' | 'gate';
-export type Step = { kind: StepKind; house: number; enemies?: EnemyDef[] };
+export type Step = { kind: StepKind; house: number; enemies?: EnemyDef[]; wayside?: boolean };
 
 export type RunState = {
   v: 1;
@@ -49,6 +49,20 @@ export const PRANA: Record<string, number> = { lesser: 8, planet: 15, boss: 25, 
 
 const strongest = (s: string[]) => (s.includes('strong') ? 'strong' : s.every(x => x === 'weak') ? 'weak' : 'normal') as 'strong' | 'normal' | 'weak';
 
+/* No more than two houses in a row without rest. When a chart crowds planets into house after house,
+   the third such house ends with a wayside rest (before the gate, in the 12th). Empty houses keep their own rest place. */
+export const MAX_HOUSES_WITHOUT_REST = 2;
+export function waysideHouses(r: Reading): Set<number> {
+  const out = new Set<number>();
+  let since = 0;
+  for (let n = 1; n <= 12; n++) {
+    if (n < 12 && r.houses[n - 1].planets.length === 0) { since = 0; continue; }
+    since += 1;
+    if (since > MAX_HOUSES_WITHOUT_REST) { out.add(n); since = 0; }
+  }
+  return out;
+}
+
 export function houseSteps(r: Reading, run: RunState, n: number): Step[] {
   const h = r.houses[n - 1];
   const rng = rngFor(r.seed, run.run * 1000 + n);
@@ -73,6 +87,10 @@ export function houseSteps(r: Reading, run: RunState, n: number): Step[] {
     const boss = scaled(conjunction(names), n, { strength: strongest(h.planets.map(p => p.strength)), pressing: names.some(pressing) });
     steps = [{ kind: 'lesser', house: n, enemies: lesser() }, { kind: 'story', house: n }, { kind: 'lesser', house: n, enemies: lesser() },
       { kind: n === 12 ? 'gate' : 'boss', house: n, enemies: [boss] }];
+  }
+  if (waysideHouses(r).has(n)) {
+    const rest: Step = { kind: 'rest', house: n, wayside: true };
+    if (n === 12) steps.splice(steps.length - 1, 0, rest); else steps.push(rest);
   }
   const life = run.life ?? 1;
   return life > 1 ? steps.map(st => (st.enemies ? { ...st, enemies: st.enemies.map(d => forLife(d, life)) } : st)) : steps;

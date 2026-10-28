@@ -17,7 +17,7 @@ import { buzz } from './haptics';
 import { lifeRules, runKarma, endOfRun, LIVES } from './game/meta';
 import { withMeta } from './metaStore';
 import { learn } from './book';
-import { houseReading, FREE_HOUSES } from './readings';
+import { houseReading, FREE_HOUSES, the } from './readings';
 import { readingHtml, pageNote } from './readingView';
 import { ownsFull, openFullSheet } from './purchase';
 
@@ -181,7 +181,7 @@ const bigLamp = `<svg class="lamp big lit" viewBox="0 0 32 32" aria-hidden="true
 </svg>`;
 
 function restStep(root: HTMLElement, ctx: RunContext) {
-  const { reading: r, run } = ctx, h = r.houses[run.house - 1], lord = h.lord;
+  const { reading: r, run } = ctx, h = r.houses[run.house - 1], lord = h.lord, wayside = !!currentStep(r, run).wayside;
   const L = lifeRules(run.life);
   const heal = Math.min(run.maxHp - run.hp, Math.round(run.maxHp * ((lord === 'Moon' ? 0.5 : 0.3) + (run.perks?.restBonus ?? 0)) * (ctx.moonFromMoon === 4 ? 1.5 : 1) * L.restHeal));
   const discount = lord === 'Mercury' ? 0.25 : 0;
@@ -206,9 +206,11 @@ function restStep(root: HTMLElement, ctx: RunContext) {
     const canMeditate = !meditated && upgradable && (both || !usedOne);
     if (!upgradable && !meditated && !restNote) restNote = `Every card in your deck is at its highest level (${MAX_LEVEL + 1}).`;
     page(root, `
-      <p class="wordmark">The ${ordinal(run.house)} house · a rest place</p>
-      <div class="rest-head">${bigLamp}<h1 class="house-title">A lamp is lit for you</h1></div>
-      <p class="lead">No planet lives in this house. Its lord, ${lord}, sits in your ${ordinal(h.lordHouse)} house and keeps this place for you.</p>
+      <p class="wordmark">The ${ordinal(run.house)} house · ${wayside ? 'a wayside rest' : 'a rest place'}</p>
+      <div class="rest-head">${bigLamp}<h1 class="house-title">${wayside ? 'A lamp by the road' : 'A lamp is lit for you'}</h1></div>
+      <p class="lead">${wayside
+        ? `The road has been long since your last rest. Past the fighting, a small lamp burns by the way, kept by this house's lord, ${the(lord)}.`
+        : `No planet lives in this house. Its lord, ${the(lord)}, sits in your ${ordinal(h.lordHouse)} house and keeps this place for you.`}</p>
       <p class="gift"><b>${esc(REST_GIFT[lord])}</b></p>
       <p class="run-stats" id="stats">${run.hp} of ${run.maxHp} health · ${run.prana} prana · deck ${run.deck.length}</p>
 

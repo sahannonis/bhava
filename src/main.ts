@@ -33,7 +33,7 @@ import { CARDS, GIFT_CARD, starterDeck } from './game/cards';
 import { getSettings, setSetting } from './settings';
 import { buzz } from './haptics';
 import { loadRun, saveRun, nextRunNumber, endRun, loadCleared } from './runStore';
-import { newRun, houseSteps, STEP_NAME, type RunState } from './game/run';
+import { newRun, houseSteps, STEP_NAME, waysideHouses, type RunState } from './game/run';
 import { continueRun } from './runView';
 import type { Mods } from './game/combat';
 import { forgetBirth, loadBirth, saveBirth } from './store';
@@ -155,6 +155,7 @@ function housePanel(r: Reading, n: number, current: number): string {
   if (h.planets.length) {
     const intro = h.kind === 'gate' ? 'The final gate is held by' : h.kind === 'boss' ? 'Its planets join into one boss:' : 'You face';
     body = `<p>${intro}</p><ul class="foes">${h.planets.map(foeLine).join('')}</ul>`;
+    if (waysideHouses(r).has(n)) body += `<p class="gift">The road is long here: a wayside rest waits ${n === 12 ? 'before the gate' : 'after the fighting'}. <b>${REST_GIFT[h.lord]}</b></p>`;
   } else if (h.kind === 'gate') {
     body = '<p>Every run ends here. Your 12th house is empty, so the gate is held by a shade of your own lagna lord.</p>';
   } else {

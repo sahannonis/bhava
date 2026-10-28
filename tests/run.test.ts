@@ -29,13 +29,20 @@ function fakeReading(seed: number): Reading {
 test('every house has a chapter, and the 12th always ends at the final gate', () => {
   for (let seed = 1; seed <= 200; seed++) {
     const r = fakeReading(seed), run = newRun(r, 1, { pressing: 'Saturn' });
+    let since = 0;
     for (let n = 1; n <= 12; n++) {
-      const steps = houseSteps(r, run, n), h = r.houses[n - 1];
+      const all = houseSteps(r, run, n), h = r.houses[n - 1];
+      const wayside = all.some(s => s.wayside);
+      const steps = all.filter(s => !s.wayside);
       assert.ok(steps.length >= 2 && steps.length <= 4, `house ${n}`);
-      if (n === 12) assert.equal(steps.at(-1)!.kind, 'gate');
+      if (n === 12) assert.equal(all.at(-1)!.kind, 'gate');
       else if (h.planets.length === 0) assert.deepEqual(steps.map(s => s.kind), ['lesser', 'story', 'rest']);
       else if (h.planets.length === 1) assert.deepEqual(steps.map(s => s.kind), ['lesser', 'story', 'planet']);
       else assert.deepEqual(steps.map(s => s.kind), ['lesser', 'story', 'lesser', 'boss']);
+      // never more than two houses in a row without a rest
+      if (all.some(s => s.kind === 'rest')) since = 0; else since += 1;
+      assert.ok(since <= 2, `seed ${seed}: ${since} houses without rest by house ${n}`);
+      if (wayside) assert.ok(h.planets.length > 0 || n === 12, 'a wayside rest only comes in a house without its own rest place');
       for (const s of steps) if (s.kind !== 'story' && s.kind !== 'rest') assert.ok(s.enemies?.length && s.enemies.every(e => e.hp > 0 && e.moves.length > 0));
       for (const s of steps) if (s.kind === 'lesser') assert.equal(s.enemies!.length, n >= 5 ? 2 : 1, `lesser spirits pair up from the 5th house (house ${n})`);
     }
