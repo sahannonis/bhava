@@ -11,7 +11,21 @@ export const PRODUCT = 'full_reading';
 const KEY = 'bhava.full', PRICE_KEY = 'bhava.fullPrice';
 const native = () => Capacitor.isNativePlatform();
 
-export const ownsFull = (): boolean => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
+const CODE_KEY = 'bhava.fullCode';
+export const ownsFull = (): boolean => { try { return localStorage.getItem(KEY) === '1' || localStorage.getItem(CODE_KEY) === '1'; } catch { return false; } };
+
+/* A code for Google Play's app reviewers, who are not allowed to buy anything: it opens the Full reading
+   on their device only. Only its hash is in the app, so the code itself can't be read out of it. */
+const REVIEW_HASH = 'c59ce4e22881ff2d30d48eeac30a7b0fd495a44d4d20cc567e69ec98aa7baf34';
+export async function redeemCode(code: string): Promise<boolean> {
+  const clean = code.trim().toUpperCase().replace(/\s+/g, '');
+  if (!clean || !globalThis.crypto?.subtle) return false;
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`bhava:${clean}`));
+  const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  if (hex !== REVIEW_HASH) return false;
+  try { localStorage.setItem(CODE_KEY, '1'); } catch { /* session only */ }
+  return true;
+}
 function setOwned(on: boolean) { try { if (on) localStorage.setItem(KEY, '1'); else localStorage.removeItem(KEY); } catch { /* session only */ } }
 const cachedPrice = () => { try { return localStorage.getItem(PRICE_KEY) || ''; } catch { return ''; } };
 

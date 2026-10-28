@@ -23,7 +23,7 @@ import { bookCount, learn } from './book';
 import { showJournal } from './journalView';
 import { showCompat } from './compatView';
 import { showTimeline } from './timelineView';
-import { initPurchases, ownsFull, openFullSheet, restore } from './purchase';
+import { initPurchases, ownsFull, openFullSheet, redeemCode, restore } from './purchase';
 import { initBackButton } from './backButton';
 import { showReading } from './readingView';
 import { firstReading } from './readings';
@@ -298,7 +298,7 @@ function showChart(r: Reading) {
         <label class="switch"><input type="checkbox" id="snd" ${getSettings().sound ? 'checked' : ''} /> <span>Sound</span></label>
         ${canRemind() ? `<label class="switch"><input type="checkbox" id="remind" ${getSettings().reminder ? 'checked' : ''} /> <span>Morning sky reminder, 8 am</span></label>` : ''}
         <button class="link" id="guideAgain">Show the fight guide again</button>
-        ${ownsFull() ? '<p class="hint">The Full reading is yours. Thank you.</p>' : '<button class="link" id="fullOpen">The Full reading</button><button class="link" id="fullRestoreMap">Restore a purchase</button>'}
+        ${ownsFull() ? '<p class="hint">The Full reading is yours. Thank you.</p>' : '<button class="link" id="fullOpen">The Full reading</button><button class="link" id="fullRestoreMap">Restore a purchase</button><button class="link" id="codeOpen">I have a code</button>'}
       </div>
       <button class="link" id="forget">Forget my birth on this phone</button>
     </footer>
@@ -316,6 +316,24 @@ function showChart(r: Reading) {
   document.getElementById('compat')!.addEventListener('click', () => { sfx('tap'); showCompat(app, r, () => showChart(r)); });
   document.getElementById('timeline')!.addEventListener('click', () => { sfx('tap'); showTimeline(app, r, () => showChart(r)); });
   document.getElementById('journal')!.addEventListener('click', () => { sfx('tap'); showJournal(app, r, () => showChart(r)); });
+  document.getElementById('codeOpen')?.addEventListener('click', () => {
+    const el = document.createElement('div');
+    el.className = 'sheet';
+    el.innerHTML = `<div class="sheet-card code-sheet" role="dialog" aria-modal="true" aria-label="Enter a code">
+      <div class="sheet-head"><h2>Enter a code</h2><button class="link" data-close>Cancel</button></div>
+      <input id="codeIn" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX" />
+      <p id="codeMsg" class="hint" role="status"></p>
+      <button class="primary" id="codeGo">Open</button>
+    </div>`;
+    document.body.appendChild(el);
+    const close = () => el.remove();
+    el.querySelector('[data-close]')!.addEventListener('click', close);
+    el.querySelector('#codeGo')!.addEventListener('click', async () => {
+      const ok = await redeemCode((el.querySelector('#codeIn') as HTMLInputElement).value);
+      if (ok) { close(); sfx('yoga'); showChart(r); }
+      else (el.querySelector('#codeMsg') as HTMLElement).textContent = 'That code was not recognised.';
+    });
+  });
   document.getElementById('fullOpen')?.addEventListener('click', () => openFullSheet(() => showChart(r)));
   document.getElementById('fullRestoreMap')?.addEventListener('click', async e => {
     const b = e.target as HTMLButtonElement; b.textContent = 'Checking Google Play…';
